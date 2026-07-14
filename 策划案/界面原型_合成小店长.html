@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>合成小店长 · 界面原型 v0.6</title>
+<!-- 字体：系统圆体（ui-rounded / PingFang SC 等），无需外链，真机打包零授权风险 -->
+<style>
+  :root {
+    --cream: #FFF7EC;
+    --sun: #FF9F43;
+    --sun-deep: #F47B20;
+    --mint: #2ED9B6;
+    --mint-deep: #14B89A;
+    --berry: #FF6B9D;
+    --gold: #FFC93C;
+    --grape: #8B5CF6;
+    --dia: #4FC3F7;
+    --ink: #4A3526;
+    --ink-soft: #8A7563;
+    --card: #FFFFFF;
+    --line: #F0DCC2;
+    --shadow: 0 10px 24px -8px rgba(120,80,30,0.28);
+    --r-lg: 28px; --r-md: 20px; --r-sm: 14px;
+    --font-d: ui-rounded, "SF Pro Rounded", "PingFang SC", system-ui, -apple-system, "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    --font-b: ui-rounded, "PingFang SC", system-ui, -apple-system, "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    font-family: var(--font-b);
+    background: radial-gradient(1200px 600px at 80% -10%, #FFE3C2 0%, transparent 60%),
+                radial-gradient(900px 500px at -10% 110%, #FFD9E8 0%, transparent 55%), #FCEBD3;
+    color: var(--ink); min-height: 100vh;
+  }
+  .stage { display: grid; grid-template-columns: 280px 1fr; gap: 28px; max-width: 1180px; margin: 0 auto; padding: 28px 20px; }
+  .sidenav h1 { font-family: var(--font-d); font-size: 22px; color: var(--sun-deep); }
+  .sidenav .sub { font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; margin: 6px 0 14px; }
+  .navbtn { display: block; width: 100%; text-align: left; border: none; background: #fff; color: var(--ink);
+    font-family: var(--font-b); font-weight: 700; font-size: 13px; padding: 10px 12px; border-radius: var(--r-sm);
+    margin-bottom: 7px; cursor: pointer; box-shadow: var(--shadow); transition: .15s; }
+  .navbtn .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--line); margin-right: 8px; }
+  .navbtn.active { background: var(--sun); color: #fff; }
+  .navbtn.active .dot { background: #fff; }
+  .legend { font-size: 10.5px; color: var(--ink-soft); line-height: 1.7; margin-top: 12px; background: #fff; padding: 10px; border-radius: var(--r-sm); box-shadow: var(--shadow); }
+
+  .phone-wrap { display: flex; justify-content: center; }
+  .phone { position: relative; width: 390px; height: 844px; background: #1a120b; border-radius: 46px; padding: 12px;
+    box-shadow: 0 30px 60px -20px rgba(80,50,20,.5); overflow: hidden; }
+  .notch { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 150px; height: 26px; background: #1a120b; border-radius: 0 0 16px 16px; z-index: 60; }
+  .statusbar { position: absolute; top: 16px; left: 22px; right: 22px; display: flex; justify-content: space-between; font-size: 12px; color: #fff; z-index: 55; font-weight: 700; }
+
+  .screen { position: absolute; inset: 12px; border-radius: 36px; background: var(--cream); overflow: hidden; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ===== Splash ===== */
+  #screen-splash { cursor: pointer; background: radial-gradient(120% 100% at 50% 30%, #FFB36B 0%, #F47B20 55%, #b9540f 100%); align-items: center; justify-content: center; text-align: center; }
+  .splash-logo { font-size: 76px; filter: drop-shadow(0 8px 6px rgba(0,0,0,.25)); animation: bob 2.4s ease-in-out infinite; }
+  .splash-title { font-family: var(--font-d); font-size: 30px; color: #fff; margin-top: 8px; text-shadow: 0 3px 0 #b9540f; letter-spacing: 2px; }
+  .splash-sub { color: #fff8; font-size: 12px; margin-top: 6px; }
+  .splash-tap { position: absolute; bottom: 60px; color: #fff; font-size: 13px; font-weight: 800; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-9px); } }
+  @keyframes pulse { 50% { opacity: .4; } }
+
+  /* ===== Loading ===== */
+  #screen-loading { background: #20160d; align-items: center; justify-content: center; }
+  .load-box { width: 74%; text-align: center; }
+  .load-shop { font-size: 60px; margin-bottom: 18px; filter: drop-shadow(0 0 18px rgba(255,160,70,.5)); }
+  .load-bar { height: 14px; border-radius: 999px; background: #3a2a1a; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,.5); }
+  .load-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--sun)); transition: width .18s; border-radius: 999px; }
+  .load-pct { color: #fff; font-weight: 800; font-size: 13px; margin-top: 10px; }
+  .load-tip { color: #ffce9e; font-size: 11.5px; margin-top: 8px; min-height: 16px; }
+
+  /* ===== Account ===== */
+  #screen-account { background: linear-gradient(180deg, #FFF3E2, #FFE6CC); padding: 64px 22px 22px; }
+  .acc-card { background: #fff; border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow); }
+  .acc-tabs { display: flex; gap: 6px; background: var(--cream); padding: 5px; border-radius: 999px; margin-bottom: 16px; }
+  .acc-tab { flex: 1; border: none; background: transparent; font-family: var(--font-b); font-weight: 800; font-size: 13px; color: var(--ink-soft); padding: 9px; border-radius: 999px; cursor: pointer; }
+  .acc-tab.active { background: var(--sun); color: #fff; }
+  .field { width: 100%; border: 2px solid var(--line); border-radius: var(--r-sm); padding: 12px; font-family: var(--font-b); font-size: 14px; margin-bottom: 10px; background: var(--cream); }
+  .field:focus { outline: none; border-color: var(--sun); }
+  .acc-foot { font-size: 11px; color: var(--ink-soft); text-align: center; margin-top: 12px; }
+
+  /* ===== Menu ===== */
+  #screen-menu { background: radial-gradient(120% 90% at 50% 20%, #FFD9A8, #F0A35E 70%, #c9742f); align-items: center; justify-content: center; }
+  .menu-diorama { font-size: 84px; filter: drop-shadow(0 10px 12px rgba(0,0,0,.3)); margin-bottom: 6px; animation: bob 3s ease-in-out infinite; }
+  .menu-title { font-family: var(--font-d); font-size: 26px; color: #fff; text-shadow: 0 3px 0 #b9540f; margin-bottom: 26px; }
+  .menu-btns { display: flex; flex-direction: column; gap: 12px; width: 64%; }
+  .mbtn { border: none; font-family: var(--font-d); font-weight: 800; font-size: 16px; padding: 15px; border-radius: var(--r-md); cursor: pointer; box-shadow: 0 6px 0 rgba(150,90,30,.4); transition: .12s; }
+  .mbtn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(150,90,30,.4); }
+  .mbtn.primary { background: #fff; color: var(--sun-deep); }
+  .mbtn.ghost { background: #ffffffcc; color: var(--ink); }
+  .mbtn.danger { background: #ff6b6b; color: #fff; }
+
+  /* ===== Shop World (45° + black shadow) ===== */
+  .world { position: absolute; inset: 0; display: flex; flex-direction: column; background: #140d08; }
+  .hud { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: linear-gradient(180deg, rgba(20,13,8,.92), rgba(20,13,8,.55)); position: relative; z-index: 20; }
+  .hud .avatar { font-size: 26px; }
+  .hud .lvl { font-size: 12px; color: #ffe6c8; font-weight: 800; }
+  .hud-chips { display: flex; gap: 6px; margin-left: auto; }
+  .hud .chip { font-size: 11px; padding: 4px 9px; border-radius: 999px; font-weight: 800; color: #3a2718; }
+  .chip.gold { background: var(--gold); }
+  .chip.grape { background: #d9c4ff; color: #4a2b8a; }
+  .chip.dia { background: #bfe9ff; color: #14506b; }
+  .gear { margin-left: 6px; border: none; background: #ffffff22; font-size: 18px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; }
+
+  .iso-wrap { position: relative; flex: 1; overflow: hidden; background: radial-gradient(120% 95% at 50% 32%, #7a5631 0%, #3a2718 48%, #0e0905 100%); }
+  .iso-floor { position: absolute; left: 50%; top: 52%; width: 160%; height: 130%; transform: translate(-50%,-32%) rotateX(56deg);
+    background: repeating-linear-gradient(90deg, #c79a5e 0 38px, #b9864c 38px 40px), repeating-linear-gradient(0deg, #c79a5e 0 38px, #b9864c 38px 40px);
+    border-radius: 16px; box-shadow: inset 0 0 90px rgba(0,0,0,.55); opacity: .9; }
+  .shadow-veil { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(58% 44% at 50% 40%, transparent 0%, rgba(8,5,2,.5) 68%, rgba(5,3,1,.95) 100%); }
+  .lit-hint { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #ffd9a8; background: #00000055; padding: 3px 10px; border-radius: 999px; z-index: 15; }
+
+  .ops-top { position: absolute; top: 8px; left: 10px; right: 10px; display: flex; gap: 8px; align-items: center; z-index: 18; }
+  .rep-bar { flex: 1; height: 12px; background: #00000066; border-radius: 999px; overflow: hidden; border: 1px solid #ffffff22; }
+  .rep-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--mint), #7CFFD6); transition: width .3s; }
+  .rep-fill.low { background: linear-gradient(90deg, #ff7a7a, #ffb199); }
+  .rep-lbl { font-size: 9px; color: #fff; position: absolute; left: 12px; top: 9px; font-weight: 800; z-index: 19; }
+  .gold-chip { font-size: 11px; font-weight: 800; color: #3a2718; background: var(--gold); padding: 3px 9px; border-radius: 999px; }
+
+  .ops-flow { position: absolute; left: 8px; right: 8px; bottom: 86px; z-index: 16; }
+  .flow-row { display: flex; align-items: stretch; gap: 6px; justify-content: center; }
+  .door { width: 40px; background: linear-gradient(180deg,#5a3c22,#3a2718); border-radius: 10px 10px 4px 4px; color: #ffd9a8; font-size: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 0; box-shadow: 0 6px 0 #20140a; }
+  .door .em { font-size: 20px; }
+  .door span:last-child { font-size: 9px; margin-top: 2px; }
+  .seats-wrap { flex: 1; background: #ffffff14; border: 1px solid #ffffff22; border-radius: 12px; padding: 6px; }
+  .seats-label { font-size: 9px; color: #ffe6c8; text-align: center; margin-bottom: 4px; }
+  .seats-row { display: flex; gap: 5px; justify-content: center; }
+  .seat { width: 38px; height: 40px; border-radius: 9px; background: #ffffff1f; display: grid; place-items: center; font-size: 20px; position: relative; cursor: pointer; border: 1px solid #ffffff22; }
+  .seat .ph { color: #ffffff66; font-size: 22px; }
+  .seat.occupied { background: #ffffff30; }
+  .seat .tag { position: absolute; bottom: -2px; font-size: 7px; color: #fff; background: #00000077; padding: 0 3px; border-radius: 4px; }
+  .cust-columns { display: flex; gap: 8px; justify-content: center; margin-top: 6px; }
+  .cust-col { display: flex; flex-direction: column; gap: 3px; }
+  .cust { font-size: 17px; position: relative; animation: walk 3.2s ease-in-out infinite; }
+  @keyframes walk { 50% { transform: translateY(-4px); } }
+  .cust .ang { position: absolute; top: -3px; right: -4px; width: 16px; height: 4px; background: #00000077; border-radius: 2px; overflow: hidden; }
+  .cust .ang i { display: block; height: 100%; width: 0%; background: #ff5a5a; }
+  .chef-area { width: 52px; background: linear-gradient(180deg,#6a4a2a,#3a2718); border-radius: 10px; color: #ffd9a8; font-size: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 6px 0 #20140a; }
+  .chef-area .em { font-size: 22px; }
+  .recruit-bubble { position: absolute; left: 50%; top: -52px; transform: translateX(-50%); background: #fff; border-radius: 14px; padding: 10px 12px; font-size: 11px; font-weight: 800; text-align: center; box-shadow: var(--shadow); z-index: 30; white-space: nowrap; }
+  .recruit-bubble .rb-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .rb-no, .rb-yes { border: none; border-radius: 10px; padding: 6px 14px; font-weight: 800; font-size: 12px; cursor: pointer; }
+  .rb-no { background: var(--cream); color: var(--ink-soft); }
+  .rb-yes { background: var(--mint); color: #fff; }
+
+  .ops-panel { position: absolute; left: 10px; right: 10px; bottom: 64px; z-index: 17; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ops-panel .chip { font-size: 10px; padding: 3px 8px; border-radius: 999px; font-weight: 800; }
+  .chip.mint { background: var(--mint); color: #063; }
+  .chip.warn { background: #ffd0d0; color: #a11; }
+  .ops-panel .btn { font-size: 11px; padding: 7px 10px; }
+
+  /* HUD 头顶签到按钮 */
+  .hud-sign { margin-left: 6px; border: none; background: var(--gold); color: #3a2718; font-size: 17px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; position: relative; font-weight: 800; box-shadow: 0 3px 0 rgba(150,90,30,.35); }
+  .hud-sign .dot { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--berry); }
+  /* 场景左右悬浮栏（替代底部 Tab） */
+  .rail { position: absolute; top: 48%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 11px; z-index: 22; }
+  .rail.left { left: 8px; }
+  .rail.right { right: 8px; }
+  .railbtn { position: relative; width: 52px; height: 52px; border-radius: 16px; border: none; background: #ffffff24; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+    color: #fff; font-family: var(--font-b); font-weight: 800; font-size: 9.5px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; box-shadow: 0 5px 12px rgba(0,0,0,.4); }
+  .railbtn span { font-size: 22px; }
+  .railbtn .badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--berry); color: #fff; font-size: 9px; display: grid; place-items: center; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+  /* 签到弹层 */
+  .sign-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .sign-cell { background: #fff; border-radius: var(--r-sm); padding: 10px 4px; text-align: center; box-shadow: var(--shadow); border: 2px solid transparent; }
+  .sign-cell .d { font-size: 9px; color: var(--ink-soft); }
+  .sign-cell .r { font-size: 20px; }
+  .sign-cell .a { font-size: 10px; font-weight: 800; color: var(--sun-deep); }
+  .sign-cell.done { opacity: .5; }
+  .sign-cell.today { border-color: var(--mint); }
+
+  /* ===== Overlays (modal layers) ===== */
+  .overlay { position: absolute; inset: 12px; background: #0c0805cc; display: none; align-items: flex-end; justify-content: center; z-index: 40; border-radius: 36px; }
+  .overlay.show { display: flex; }
+  .sheet { width: 100%; max-height: 86%; background: var(--cream); border-radius: 28px 28px 36px 36px; padding: 18px 16px 22px; overflow-y: auto; animation: up .25s ease; box-shadow: 0 -10px 30px rgba(0,0,0,.4); }
+  @keyframes up { from { transform: translateY(40px); opacity: .6; } }
+  .sheet h3 { font-family: var(--font-d); color: var(--sun-deep); font-size: 17px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .sheet .close { margin-left: auto; border: none; background: var(--line); width: 28px; height: 28px; border-radius: 50%; font-size: 15px; cursor: pointer; color: var(--ink); }
+  .btn { border: none; font-family: var(--font-b); font-weight: 800; border-radius: var(--r-sm); padding: 12px; cursor: pointer; font-size: 14px; box-shadow: 0 4px 0 rgba(150,90,30,.35); transition: .1s; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(150,90,30,.35); }
+  .btn.mint { background: var(--mint); color: #fff; }
+  .btn.ghost { background: var(--cream); color: var(--ink-soft); box-shadow: 0 4px 0 var(--line); }
+  .btn.block { width: 100%; }
+  .chip { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }
+
+  /* merge demo */
+  .merge-stage { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 4px; }
+  .merge-pair { display: flex; align-items: center; gap: 14px; }
+  .merge-item { width: 76px; height: 76px; border-radius: 18px; background: #fff; display: grid; place-items: center; font-size: 38px; box-shadow: var(--shadow); position: relative; touch-action: none; user-select: none; }
+  .merge-item .lv { position: absolute; bottom: 4px; right: 6px; font-size: 11px; font-weight: 900; color: var(--sun-deep); }
+  .merge-item.dragging { opacity: .35; }
+  .merge-item.drag-clone { position: fixed; z-index: 999; pointer-events: none; opacity: .95; margin: 0; }
+  .merge-plus { font-size: 26px; color: var(--ink-soft); }
+  .merge-result { width: 76px; height: 76px; border-radius: 18px; background: linear-gradient(135deg,#fff,#ffe8c8); display: grid; place-items: center; font-size: 38px; box-shadow: var(--shadow); }
+  .merge-hint { font-size: 11.5px; color: var(--ink-soft); text-align: center; line-height: 1.6; }
+  @keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+  /* lists */
+  .task-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .task-tabs button { flex: 1; border: none; background: var(--cream); border-radius: 999px; padding: 8px; font-weight: 800; font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+  .task-tabs button.active { background: var(--sun); color: #fff; }
+  .row { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: var(--r-md); padding: 12px; margin-bottom: 9px; box-shadow: var(--shadow); }
+  .row .ic { font-size: 26px; }
+  .row .body { flex: 1; }
+  .row .body b { font-size: 13px; }
+  .row .body .pr { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .row .body .bar { height: 6px; background: var(--line); border-radius: 999px; margin-top: 6px; overflow: hidden; }
+  .row .body .bar i { display: block; height: 100%; background: var(--mint); border-radius: 999px; }
+  .row .claim { border: none; background: var(--mint); color: #fff; font-weight: 800; font-size: 12px; padding: 8px 12px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+  .row .claim.done { background: var(--line); color: var(--ink-soft); }
+  .ach-tier { font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 999px; }
+  .t-bronze { background: #e8c9a0; color: #6a4a2a; }
+  .t-silver { background: #d7dde3; color: #5a6b78; }
+  .t-gold { background: #ffe08a; color: #8a6a00; }
+
+  .toast { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(10px); background: #2a1c10ee; color: #fff; font-size: 12.5px; font-weight: 800; padding: 10px 16px; border-radius: 999px; opacity: 0; transition: .2s; z-index: 80; pointer-events: none; max-width: 86%; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .coin-fly { position: absolute; z-index: 90; font-size: 20px; font-weight: 900; color: var(--gold); pointer-events: none; animation: flyup 1s ease-out forwards; }
+  @keyframes flyup { to { transform: translateY(-60px); opacity: 0; } }
+  .fab-note { position: absolute; bottom: 64px; right: 10px; z-index: 35; background: var(--grape); color: #fff; font-size: 10.5px; font-weight: 800; padding: 4px 9px; border-radius: 999px; box-shadow: var(--shadow); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <aside class="sidenav">
+    <h1>合成小店长</h1>
+    <div class="sub">界面原型 v0.6 · 系统圆体 · 45° 真3D 卡通 · 黑色阴影<br>5 幕流程 · 功能入口移至 HUD 头顶（签到/设置）+ 场景左右悬浮栏（去底部 Tab）</div>
+    <button class="navbtn active" data-go="splash"><span class="dot"></span>① 启动封面</button>
+    <button class="navbtn" data-go="loading"><span class="dot"></span>② Loading 资源</button>
+    <button class="navbtn" data-go="account"><span class="dot"></span>③ 账号（登陆/注册/游客）</button>
+    <button class="navbtn" data-go="menu"><span class="dot"></span>④ 游戏菜单</button>
+    <button class="navbtn" data-go="shop"><span class="dot"></span>⑤ 店铺实景（世界）</button>
+    <div class="legend">
+      🟠 金币（可花）｜🟣 积分（可兑换）｜🔵 钻石（稀缺）<br>
+      角标「Fab」= 该元件最终由 Fab 免费 UI 资源替换<br>
+      黑场 = 未被灯光覆盖区域（§17.2 光照揭示）
+    </div>
+  </aside>
+
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+
+      <!-- ① 启动封面 -->
+      <section class="screen active" id="screen-splash" onclick="go('loading')">
+        <div class="splash-logo">🏪</div>
+        <div class="splash-title">合成小店长</div>
+        <div class="splash-sub">点亮黑暗中的小店</div>
+        <div class="splash-tap">▶ 点击进入</div>
+      </section>
+
+      <!-- ② Loading 资源 -->
+      <section class="screen" id="screen-loading">
+        <div class="load-box">
+          <div class="load-shop">🏪</div>
+          <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+          <div class="load-pct" id="loadPct">0%</div>
+          <div class="load-tip" id="loadTip">小店正在从黑暗中亮起…</div>
+        </div>
+      </section>
+
+      <!-- ③ 账号 -->
+      <section class="screen" id="screen-account">
+        <div class="acc-card">
+          <div class="acc-tabs">
+            <button class="acc-tab active" onclick="switchAcc(this)">登陆</button>
+            <button class="acc-tab" onclick="switchAcc(this)">注册</button>
+            <button class="acc-tab" onclick="switchAcc(this)">游客</button>
+          </div>
+          <input class="field" placeholder="账号 / 手机号" />
+          <input class="field" type="password" placeholder="密码" />
+          <button class="btn mint block" onclick="accLogin()">登陆并进入 ▶</button>
+          <button class="btn ghost block" style="margin-top:8px" onclick="accGuest()">🚶 游客模式（本地存档）</button>
+          <div class="acc-foot">登陆/注册走 HTTP REST（§14）；游客本地 SaveGame，可后续绑定</div>
+        </div>
+      </section>
+
+      <!-- ④ 游戏菜单 -->
+      <section class="screen" id="screen-menu">
+        <div class="menu-diorama">🏪✨</div>
+        <div class="menu-title">合成小店长</div>
+        <div class="menu-btns">
+          <button class="mbtn primary" onclick="startGame()">▶ 开始游戏</button>
+          <button class="mbtn ghost" onclick="openOv('ov-help')">📖 游戏说明</button>
+          <button class="mbtn danger" onclick="quitGame()">⏏ 退出游戏</button>
+        </div>
+      </section>
+
+      <!-- ⑤ 店铺实景（世界） -->
+      <section class="screen" id="screen-shop">
+        <div class="world">
+          <div class="hud">
+            <div class="avatar">🧑‍🍳</div>
+            <div class="lvl">店长 <b>Lv.7</b></div>
+            <div class="hud-chips">
+              <span class="chip gold">💰 <span id="goldHud">1200</span></span>
+              <span class="chip grape">★ <span id="pointHud">320</span></span>
+              <span class="chip dia">💎 2</span>
+            </div>
+            <button class="hud-sign" onclick="openOv('ov-sign')">📅<span class="dot" id="signDot"></span></button>
+            <button class="gear" onclick="openOv('ov-settings')">⚙️</button>
+          </div>
+
+          <div class="iso-wrap">
+            <div class="iso-floor"></div>
+            <div class="shadow-veil"></div>
+            <div class="lit-hint">💡 灯光覆盖区（黑处为阴影，随升级点亮 · §17.2）</div>
+
+            <div class="ops-top">
+              <span class="rep-lbl">信誉</span>
+              <div class="rep-bar"><div class="rep-fill" id="repFill"></div></div>
+              <div class="gold-chip">💰 <span id="goldOps">1200</span></div>
+            </div>
+
+            <div class="ops-flow">
+              <div class="flow-row">
+                <div class="door"><span class="em">🚪</span>入口</div>
+                <div class="seats-wrap">
+                  <div class="seats-label">店员座位（一排 5 个）</div>
+                  <div class="seats-row">
+                    <div class="seat occupied">👔<span class="tag">店员1</span></div>
+                    <div class="seat" onclick="openRecruit(1)"><span class="ph">＋</span></div>
+                    <div class="seat" onclick="openRecruit(2)"><span class="ph">＋</span></div>
+                    <div class="seat" onclick="openRecruit(3)"><span class="ph">＋</span></div>
+                    <div class="seat" onclick="openRecruit(4)"><span class="ph">＋</span></div>
+                  </div>
+                  <div class="cust-columns" id="custColumns">
+                    <div class="cust-col"><div class="cust">🧒<span class="ang"><i></i></span></div></div>
+                  </div>
+                  <div class="recruit-bubble" id="recruitBubble" hidden>
+                    招募 1 名店员？<br>花费 <b>100 💰</b>
+                    <div class="rb-btns"><button class="rb-no" onclick="cancelRecruit()">取消</button><button class="rb-yes" onclick="confirmRecruit()">确认</button></div>
+                  </div>
+                </div>
+                <div class="chef-area"><span class="em">👨‍🍳</span>厨师工位<br>合成产能</div>
+                <div class="door"><span class="em">🚪</span>出口</div>
+              </div>
+            </div>
+
+            <div class="ops-panel">
+              <span class="chip mint">店员 <span id="clerkCount">1</span>/5</span>
+              <span class="chip mint">厨师 <span id="chefCount">1</span></span>
+              <span class="chip warn" id="angerChip" hidden>😠 怒气 <span id="angerVal">0</span>/100</span>
+              <button class="btn mint" onclick="hireChef()">👨‍🍳 招募厨师（<span id="chefCost">300</span>💰）</button>
+              <button class="btn ghost" onclick="simAnger()">⏱ 模拟等待超 60s（怒气＋10）</button>
+            </div>
+
+            <div class="rail left">
+              <button class="railbtn" onclick="openOv('ov-merge')"><span>🧩</span>合成</button>
+              <button class="railbtn" onclick="openOv('ov-orders')"><span>📋</span>订单</button>
+            </div>
+            <div class="rail right">
+              <button class="railbtn" onclick="openOv('ov-reward')"><span>📺</span>广告</button>
+              <button class="railbtn" onclick="openOv('ov-mall')"><span>🎁</span>商城</button>
+              <button class="railbtn" onclick="openOv('ov-tasks')"><span>✅</span>任务<span class="badge">2</span></button>
+              <button class="railbtn" onclick="openOv('ov-achv')"><span>🏆</span>成就</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 模态功能层（Overlay） ===== -->
+      <div class="overlay" id="ov-merge">
+        <div class="sheet">
+          <h3>🧩 合成 <button class="close" onclick="closeOv('ov-merge')">✕</button></h3>
+          <div class="merge-stage">
+            <div class="merge-pair">
+              <div class="merge-item" id="m1">🍞<span class="lv">1</span></div>
+              <div class="merge-plus">→</div>
+              <div class="merge-item" id="m2">🍞<span class="lv">1</span></div>
+            </div>
+            <div class="merge-result" id="mresult">🥐</div>
+            <div class="merge-hint">把左边面包<b>拖到</b>右边同类即可合成升级（核心手势＝拖拽）。每升一级，订单价值与积分更高！</div>
+            <button class="btn ghost" onclick="resetMerge()">🔄 再演示一次</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-orders">
+        <div class="sheet">
+          <h3>📋 订单 / 邻里 <button class="close" onclick="closeOv('ov-orders')">✕</button></h3>
+          <div class="row"><div class="ic">🥐</div><div class="body"><b>订单：3× 牛角包</b><div class="pr">奖励 120💰 + 15★</div></div><button class="claim" onclick="claimOrder(this)">完成</button></div>
+          <div class="row"><div class="ic">🥤</div><div class="body"><b>订单：2× 饮品</b><div class="pr">奖励 80💰 + 10★</div></div><button class="claim" onclick="claimOrder(this)">完成</button></div>
+          <div class="row" style="background:#fff7ef"><div class="ic">🧒</div><div class="body"><b>邻里 · 小满</b><div class="pr">好感 <span id="affTxt">12 · 熟人</span></div><div class="bar"><i id="affBar" style="width:60%"></i></div></div><button class="claim" style="background:var(--berry)" onclick="greet()">招呼</button></div>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-reward">
+        <div class="sheet">
+          <h3>📺 看视频得增益 <button class="close" onclick="closeOv('ov-reward')">✕</button></h3>
+          <div class="row"><div class="ic">⚡</div><div class="body"><b>本局产出 ×2</b><div class="pr">30 分钟内所有收益翻倍</div></div><button class="claim" onclick="playRV(this)">观看</button></div>
+          <div class="row"><div class="ic">📦</div><div class="body"><b>离线收益翻倍</b><div class="pr">下次离线收益 ×2</div></div><button class="claim" onclick="playRV(this)">观看</button></div>
+          <div class="row"><div class="ic">👨‍🍳</div><div class="body"><b>临时 +1 厨师</b><div class="pr">解产能之急（§16）</div></div><button class="claim" onclick="playRV(this)">观看</button></div>
+          <p style="font-size:10.5px;color:var(--ink-soft);text-align:center;margin-top:10px">所有广告发奖走服务端 S2S 校验（§14），每日总上限 DailyAdCap</p>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-mall">
+        <div class="sheet">
+          <h3>🎁 收益兑换商城 <button class="close" onclick="closeOv('ov-mall')">✕</button></h3>
+          <div class="row"><div class="ic">📱</div><div class="body"><b>¥5 话费券</b><div class="pr">5000 ★ · 低门槛</div></div><button class="claim" onclick="redeem(this,'¥5话费券')">兑换</button></div>
+          <div class="row"><div class="ic">🎬</div><div class="body"><b>¥20 视频会员</b><div class="pr">18000 ★ · 中门槛</div></div><button class="claim" onclick="redeem(this,'¥20会员')">兑换</button></div>
+          <div class="row"><div class="ic">📦</div><div class="body"><b>实物盲盒</b><div class="pr">80000 ★ · 高门槛话题品</div></div><button class="claim" onclick="redeem(this,'实物盲盒')">兑换</button></div>
+          <p style="font-size:10.5px;color:var(--ink-soft);text-align:center;margin-top:10px">积分＝虚拟代币，兑换品牌权益（合规定位 §7）</p>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-tasks">
+        <div class="sheet">
+          <h3>✅ 任务 <button class="close" onclick="closeOv('ov-tasks')">✕</button></h3>
+          <div class="task-tabs"><button class="active" onclick="switchTaskTab(this)">每日</button><button onclick="switchTaskTab(this)">每周</button><button onclick="switchTaskTab(this)">章节</button></div>
+          <div class="row"><div class="ic">🧩</div><div class="body"><b>合成 20 次</b><div class="pr">12/20</div><div class="bar"><i style="width:60%"></i></div></div><button class="claim" onclick="claimTask(this,'每日·合成')">领取</button></div>
+          <div class="row"><div class="ic">📋</div><div class="body"><b>完成 5 单</b><div class="pr">3/5</div><div class="bar"><i style="width:60%"></i></div></div><button class="claim" onclick="claimTask(this,'每日·订单')">领取</button></div>
+          <div class="row"><div class="ic">📺</div><div class="body"><b>看 2 个广告</b><div class="pr">1/2</div><div class="bar"><i style="width:50%"></i></div></div><button class="claim" onclick="claimTask(this,'每日·广告')">领取</button></div>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-achv">
+        <div class="sheet">
+          <h3>🏆 成就 <button class="close" onclick="closeOv('ov-achv')">✕</button></h3>
+          <div class="row"><div class="ic">🥐</div><div class="body"><b>首次合成</b><div class="pr">铜 · 积分 ×50</div><span class="ach-tier t-bronze">已解锁</span></div><button class="claim done" disabled>已领</button></div>
+          <div class="row"><div class="ic">🏪</div><div class="body"><b>店铺升级者</b><div class="pr">Lv.7/10 · 银：钻石×1</div><div class="bar"><i style="width:70%"></i></div></div><button class="claim" onclick="claimAch(this,'店铺升级者·银')">领取</button></div>
+          <div class="row"><div class="ic">👔</div><div class="body"><b>招募大师</b><div class="pr">1/10 · 铜：金币×200</div><div class="bar"><i style="width:10%"></i></div></div><button class="claim" onclick="claimAch(this,'招募大师·铜')">领取</button></div>
+          <div class="row"><div class="ic">📅</div><div class="body"><b>七日之约</b><div class="pr">3/7 · 金：限定装饰</div><div class="bar"><i style="width:43%"></i></div></div><button class="claim" onclick="claimAch(this,'七日之约')">领取</button></div>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-settings">
+        <div class="sheet">
+          <h3>⚙️ 设置 <button class="close" onclick="closeOv('ov-settings')">✕</button></h3>
+          <div class="row"><div class="ic">🔊</div><div class="body"><b>音效</b></div><button class="claim" onclick="toggleSet(this)">开</button></div>
+          <div class="row"><div class="ic">🎵</div><div class="body"><b>音乐</b></div><button class="claim" onclick="toggleSet(this)">开</button></div>
+          <div class="row"><div class="ic">🌐</div><div class="body"><b>语言</b><div class="pr">简体中文</div></div><button class="claim" onclick="toast('语言设置（待接入）')">更改</button></div>
+          <div class="row"><div class="ic">📘</div><div class="body"><b>重看新手引导</b></div><button class="claim" onclick="toast('重置引导（待接入）')">重置</button></div>
+          <div class="row"><div class="ic">🚪</div><div class="body"><b>退出登录</b></div><button class="claim" style="background:var(--berry)" onclick="accLogout()">退出</button></div>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-sign">
+        <div class="sheet">
+          <h3>📅 每日签到 <button class="close" onclick="closeOv('ov-sign')">✕</button></h3>
+          <p style="font-size:11px;color:var(--ink-soft);margin-bottom:10px">连续签到奖励递增，断签从第一天重算（§8 留存 · 资源发放点）</p>
+          <div class="sign-grid" id="signGrid"></div>
+          <button class="btn mint block" id="signBtn" onclick="doSign()">立即签到 ▶</button>
+        </div>
+      </div>
+
+      <div class="overlay" id="ov-help">
+        <div class="sheet">
+          <h3>📖 游戏说明 <button class="close" onclick="closeOv('ov-help')">✕</button></h3>
+          <div style="font-size:12.5px;line-height:1.9;color:var(--ink)">
+            🧩 <b>合成</b>：拖拽两个相同物件合并升级，越高级越值钱。<br>
+            🏪 <b>经营</b>：顾客从入口进店落座生成订单，厨师合成、出口离店。<br>
+            👔 <b>扩张</b>：点空座位花 100 金币招店员（订单列变多），招厨师提合成产能。<br>
+            😠 <b>信誉</b>：顾客等超 60 秒会生气，怒气爆表扣信誉——别让店员太少！<br>
+            ★ <b>边玩边赚</b>：积分可在商城换话费券等真实权益（虚拟代币合规兑换）。<br>
+            💡 灯光之外是阴影，随着你升级会一点点亮起来 ✨
+          </div>
+        </div>
+      </div>
+
+      <div class="fab-note">Fab 角标＝最终替换</div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 屏幕切换
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-'+id).classList.add('active');
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.go===id));
+    if(id==='loading') startLoading();
+  }
+  document.querySelectorAll('[data-go]').forEach(el=>{ el.addEventListener('click', ()=> go(el.dataset.go)); });
+
+  // 模态层
+  function openOv(id){ document.getElementById(id).classList.add('show'); }
+  function closeOv(id){ document.getElementById(id).classList.remove('show'); }
+
+  // Toast
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1600);
+  }
+  function flyCoin(anchor){
+    const phone=document.querySelector('.phone');
+    const r=anchor.getBoundingClientRect(), pr=phone.getBoundingClientRect();
+    const c=document.createElement('div'); c.className='coin-fly'; c.textContent='¢';
+    c.style.left=(r.left-pr.left+r.width/2-10)+'px'; c.style.top=(r.top-pr.top)+'px';
+    phone.appendChild(c); setTimeout(()=>c.remove(),1000);
+  }
+
+  // Loading
+  let loadTimer=null;
+  function startLoading(){
+    const fill=document.getElementById('loadFill'), pct=document.getElementById('loadPct'), tip=document.getElementById('loadTip');
+    let p=0; clearInterval(loadTimer);
+    const tips=['小店正在从黑暗中亮起…','合成是核心爽点，记得拖拽！','看广告能加速，但别贪杯～','攒积分换话费券，真能兑！'];
+    fill.style.width='0%';
+    loadTimer=setInterval(()=>{
+      p+=Math.random()*9+4; if(p>100)p=100;
+      fill.style.width=p+'%'; pct.textContent=Math.floor(p)+'%';
+      tip.textContent=tips[Math.floor(p/25)%tips.length];
+      if(p>=100){ clearInterval(loadTimer); setTimeout(()=>go('account'),450); }
+    },170);
+  }
+
+  // 账号
+  function switchAcc(btn){ btn.parentElement.querySelectorAll('.acc-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  function accLogin(){ toast('登陆中…（HTTP /auth/login）'); setTimeout(()=>go('menu'),650); }
+  function accGuest(){ toast('游客模式进入 🚶'); go('menu'); }
+  function accLogout(){ closeOv('ov-settings'); toast('已退出登录'); go('splash'); }
+
+  // 菜单
+  function startGame(){ go('shop'); }
+  function quitGame(){ toast('已退出游戏'); go('splash'); }
+
+  // 合成（拖拽为核心手势）
+  function doMerge(){
+    const m1=document.getElementById('m1'), m2=document.getElementById('m2'), r=document.getElementById('mresult');
+    if(m1.dataset.done==='1') return;
+    m1.dataset.done='1'; m1.style.visibility='hidden';
+    m2.innerHTML='🥐<span class="lv">2</span>'; m2.classList.add('merged');
+    r.style.animation='none'; void r.offsetWidth; r.style.animation='pop .5s cubic-bezier(.2,1.4,.4,1)';
+    flyCoin(m2); toast('升级！牛角包 Lv2 出炉 🥐（订单价值↑，积分↑）');
+  }
+  function resetMerge(){
+    const m1=document.getElementById('m1'), m2=document.getElementById('m2');
+    m1.dataset.done=''; m1.style.visibility='visible';
+    m2.innerHTML='🍞<span class="lv">1</span>'; m2.classList.remove('merged');
+    toast('已重置，再拖一次试试 🫳');
+  }
+  function initMergeDrag(){
+    const m1=document.getElementById('m1'), m2=document.getElementById('m2');
+    if(!m1||!m2) return;
+    let dragging=false, clone=null;
+    m1.addEventListener('pointerdown',e=>{
+      if(m1.dataset.done==='1') return;
+      dragging=true; try{ m1.setPointerCapture(e.pointerId); }catch(_){}
+      m1.classList.add('dragging');
+      clone=m1.cloneNode(true); clone.classList.add('drag-clone'); clone.classList.remove('dragging');
+      document.body.appendChild(clone); moveClone(e);
+    });
+    m1.addEventListener('pointermove',e=>{ if(dragging) moveClone(e); });
+    m1.addEventListener('pointerup',e=>{
+      if(!dragging) return; dragging=false; m1.classList.remove('dragging');
+      const r2=m2.getBoundingClientRect(), r1=clone.getBoundingClientRect();
+      const hit=!(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom);
+      if(clone){ clone.remove(); clone=null; }
+      if(hit) doMerge();
+    });
+    function moveClone(e){ clone.style.left=(e.clientX-38)+'px'; clone.style.top=(e.clientY-38)+'px'; }
+  }
+  initMergeDrag();
+
+  // 订单 / 广告 / 商城
+  function claimOrder(btn){ btn.textContent='完成 ✓'; btn.disabled=true; toast('订单完成！+金币 +积分'); }
+  function playRV(btn){ btn.textContent='播放中…'; btn.disabled=true; setTimeout(()=>{ btn.textContent='已发放 ✓'; toast('奖励已发放（服务端 S2S 校验）'); },900); }
+  function redeem(btn, name){ btn.textContent='兑换中…'; btn.disabled=true; setTimeout(()=>{ toast('已提交：'+name+'（服务端校验中）'); btn.textContent='已兑换 ✓'; },700); }
+
+  // 邻里好感（§15.3）
+  let aff=12;
+  function greet(){
+    aff++;
+    const lvl = aff>=20?'挚友':aff>=15?'熟客':aff>=10?'熟人':'新客';
+    document.getElementById('affTxt').textContent=aff+' · '+lvl;
+    document.getElementById('affBar').style.width=Math.min(100,aff*5)+'%';
+    toast('小满好感 +1 ❤ 现在是「'+lvl+'」');
+  }
+
+  // 任务 / 成就
+  function switchTaskTab(btn){ btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  function claimTask(btn, name){ btn.textContent='已领取 ✓'; btn.classList.add('done'); btn.disabled=true; toast('任务奖励已发放：'+name+'（服务端 /task/claim）'); }
+  function claimAch(btn, name){ btn.textContent='已领 ✓'; btn.classList.add('done'); btn.disabled=true; toast('🏆 成就解锁：'+name+' +灯光扩张 ✨'); }
+  function toggleSet(btn){ btn.textContent = btn.textContent==='开'?'关':'开'; }
+
+  // 每日签到领取资源（§8 留存 / 上一轮未完成需求）
+  const SIGN_REWARDS=[
+    {d:'第1天',r:'💰',a:'×100',amt:100,type:'gold'},
+    {d:'第2天',r:'💎',a:'×1',amt:1,type:'diamond'},
+    {d:'第3天',r:'💰',a:'×200',amt:200,type:'gold'},
+    {d:'第4天',r:'★',a:'×50',amt:50,type:'point'},
+    {d:'第5天',r:'💰',a:'×300',amt:300,type:'gold'},
+    {d:'第6天',r:'💎',a:'×2',amt:2,type:'diamond'},
+    {d:'第7天',r:'🎁',a:'大奖',amt:0,type:'gift'}
+  ];
+  let signDay=2; // 演示：已签到第 2 天
+  function renderSign(){
+    const g=document.getElementById('signGrid'); if(!g) return;
+    g.innerHTML=SIGN_REWARDS.map((w,i)=>{
+      const cls = i<signDay?'done':(i===signDay?'today':'');
+      return '<div class="sign-cell '+cls+'"><div class="d">'+w.d+'</div><div class="r">'+w.r+'</div><div class="a">'+w.a+'</div></div>';
+    }).join('');
+    const btn=document.getElementById('signBtn');
+    if(signDay>=7){ btn.textContent='本周已签满 ✓'; btn.disabled=true; }
+    else { btn.textContent='签到第 '+(signDay+1)+' 天 ▶'; btn.disabled=false; }
+    const dot=document.getElementById('signDot');
+    if(dot) dot.style.display = signDay>=7 ? 'none':'block';
+  }
+  function doSign(){
+    if(signDay>=7) return;
+    const w=SIGN_REWARDS[signDay];
+    if(w.type==='gold'){ goldOps+=w.amt; updateGold(); }
+    else if(w.type==='point'){ points+=w.amt; updatePoints(); }
+    signDay++; renderSign();
+    toast('签到成功！'+w.r+w.a+' 已发放 🎉');
+  }
+  renderSign();
+
+  // ===== 店铺运营模拟（§16） =====
+  let goldOps=1200, rep=100, chefCost=300, clerkCount=1, chefCount=1, pendingSeat=null, anger=0, points=320;
+  const CUSTS=['🧒','👶','👦','👧','🧓','👨','👩','🧑'];
+  function $(id){ return document.getElementById(id); }
+  function updateGold(){ $('goldOps').textContent=goldOps; $('goldHud').textContent=goldOps; }
+  function updateRep(){ const f=$('repFill'); f.style.width=rep+'%'; f.classList.toggle('low', rep<50); }
+  function updatePoints(){ $('pointHud').textContent=points; }
+
+  function openRecruit(seat){ pendingSeat=seat; $('recruitBubble').hidden=false; }
+  function cancelRecruit(){ $('recruitBubble').hidden=true; pendingSeat=null; }
+  function confirmRecruit(){
+    if(goldOps<100){ toast('金币不足，先去合成赚币 💰'); cancelRecruit(); return; }
+    goldOps-=100; updateGold();
+    const s=document.querySelector('.seat[data-seat="'+pendingSeat+'"]');
+    clerkCount++;
+    s.classList.add('occupied'); s.classList.remove('ph');
+    s.innerHTML='👔<span class="tag">店员'+clerkCount+'</span>'; s.removeAttribute('onclick');
+    const col=document.createElement('div'); col.className='cust-col';
+    col.innerHTML='<div class="cust">'+CUSTS[clerkCount%CUSTS.length]+'<span class="ang"><i></i></span></div>';
+    $('custColumns').appendChild(col);
+    $('clerkCount').textContent=clerkCount;
+    $('recruitBubble').hidden=true; pendingSeat=null;
+    toast('店员上岗！队列 '+clerkCount+' 列（§16 流转）');
+  }
+  function hireChef(){
+    if(goldOps<chefCost){ toast('金币不足，厨师需 '+chefCost+' 💰'); return; }
+    goldOps-=chefCost; updateGold();
+    chefCount++; $('chefCount').textContent=chefCount;
+    toast('厨师 +1！合成产能 ↑（'+chefCount+' 条管线）');
+  }
+  function simAnger(){
+    anger+=10; if(anger>100) anger=100;
+    $('angerChip').hidden=false; $('angerVal').textContent=anger;
+    const bar=document.querySelector('#custColumns .cust .ang i'); if(bar) bar.style.width=anger+'%';
+    if(anger>=100){ rep=Math.max(0,rep-1); updateRep(); anger=0; $('angerVal').textContent=0;
+      const b2=document.querySelector('#custColumns .cust .ang i'); if(b2) b2.style.width='0%';
+      toast('😠 怒气爆表！信誉 -1（现 '+rep+'）');
+    } else { toast('顾客等待中…怒气 '+anger+'/100'); }
+  }
+  updateRep(); updateGold();
+</script>
+</body>
+</html>
