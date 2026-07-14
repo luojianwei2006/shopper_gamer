@@ -1,0 +1,16 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local preview / build artifacts (not part of design docs)
+node_modules/
+dist/
+build/
+*.log
+
+# Keep design docs tracked; ignore only generated junk
+**/.cache/
