@@ -7,10 +7,17 @@
 // 避免在 shoppergame 里直接引用 libprotobuf 符号导致链接期可见性失败）。
 #include "ProtoSpeaker.h"
 
+// 热重载管理器：提供运行时 MountPak / LoadAssetAsync 与 OnHotfixPakMounted 广播。
+// （必须在本文件生成的 generated.h 之前 include，保证下面的反射宏用本文件 CURRENT_FILE_ID）
+#include "HotReloadManager.h"
+
 // 必须在所有 DECLARE_DYNAMIC_* / UCLASS 之前 include 本文件的 generated.h（见 BaseSocketSubsystem.h 注释）。
 // 注意顺序：先 include 依赖头（BaseSocketSubsystem.h / ProtoSpeaker.h），再 include 本文件 generated.h，
 // 这样下面这些委托宏展开时 CURRENT_FILE_ID 已重置为本文件，而不是被 ProtoSpeaker 的 id 污染。
 #include "ShopperSocketSubsystem.generated.h"
+
+// 随热更 pak 下发的 socket 参数覆盖层（UPrimaryDataAsset），不改动编译期 ShopperSettings。
+class UShopperHotfixConfig;
 
 // 收到 login_speaker_resp 的强类型广播：protobuf 负载反序列化为业务字段后抛出，
 // 蓝图可直接 Bind Event 拿到 Code / Msg / MinLimit / BombLimit / User，无需接触 protobuf 类型。
@@ -81,6 +88,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Socket|Speaker")
 	bool ParseSpeakerNewEventNotify(const TArray<uint8>& Data, int32& OutFlag);
 
+	// 应用一个热更配置（来自热更 pak 的 UShopperHotfixConfig）。会热重载底层连接/帧格式参数，
+	// 下次连接即生效。由 UHotReloadManager::OnHotfixPakMounted 在 pak 挂载后自动调用，也可手动调用。
+	UFUNCTION(BlueprintCallable, Category = "Socket|Speaker")
+	void ApplyHotfixConfig(UShopperHotfixConfig* Cfg);
+
 	// 收到并已成功解析为 login_speaker_resp 的消息（强类型事件）
 	UPROPERTY(BlueprintAssignable, Category = "Socket")
 	FOnSpeakerLoginRespReceived OnSpeakerLoginRespReceived;
@@ -103,6 +115,7 @@ public:
 
 protected:
 	// ── 基类钩子覆盖 ──
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void InitFrameConfig(FGameSocketFrameConfig& OutConfig) const override;
 	virtual bool ShouldAutoConnect() const override;
 	virtual void GetDefaultEndpoint(FString& OutHost, int32& OutPort) const override;
@@ -113,6 +126,15 @@ protected:
 
 	// 收到完整数据包后按协议号分流解析，并广播对应的强类型委托
 	virtual void HandlePacket(int32 Protocol, TArray<uint8>&& Data) override;
+
+private:
+	// 随热更 pak 下发的配置覆盖层；非空时各钩子优先用它，否则回退 ShopperSettings。
+	// UPROPERTY 持有弱引用，避免 hotfix 资产被 GC 误回收导致悬空。
+	UPROPERTY()
+	TWeakObjectPtr<UShopperHotfixConfig> HotfixConfig;
+
+	// UHotReloadManager::OnHotfixPakMounted 回调：加载固定资产路径的 hotfix 配置并应用
+	void OnHotfixPakMounted(const FString& PakPath);
 
 private:
 	// SpeakerProto 协议号（定义于 speaker_req.proto，无 package），用于收包按协议号分流。

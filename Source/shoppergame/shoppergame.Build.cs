@@ -34,6 +34,7 @@ public class shoppergame : ModuleRules
 			"Json",          // JSON 构造
 			"JsonUtilities", // FJsonObjectConverter
 			"DeveloperSettings", // UDeveloperSettings：项目设置里的环境配置
+			"AssetRegistry",  // 热更 pak 挂载后刷新资源注册表（ScanFilesSynchronous）
 			"Sockets",       // 持久化 TCP 长链接
 			"Networking",    // FIPv4Endpoint / FInternetAddr
 			"ShopperProto"   // protobuf 运行时：消息 <-> 字节互转（依赖该模块才能 #include 其头与链接 libprotobuf）

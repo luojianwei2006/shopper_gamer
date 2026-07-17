@@ -1,6 +1,9 @@
 #include "ShopperSocketSubsystem.h"
 
 #include "ShopperSettings.h"
+#include "ShopperHotfixConfig.h"   // 热更配置覆盖层（随 pak 下发）
+#include "HotReloadManager.h"      // OnHotfixPakMounted 广播
+#include "UObject/UObjectGlobals.h" // LoadObject
 
 // 本文件【不再】直接 include 任何 protobuf 头。所有 protobuf 消息的构造/解析都已封装进
 // ShopperProto 模块（ProtoSpeaker.h 的 Proto_Build*/Proto_Parse*），因为 UE 模块默认隐藏
@@ -16,6 +19,10 @@ static constexpr int32 kLevelExpNotifyProtocol = 107;   // LEVEL_EXP_NOTIFY
 static constexpr int32 kNewMailNotifyProtocol  = 108;   // NEW_MAIL_NOTIFY
 static constexpr int32 kNewEventNotifyProtocol = 109;   // NEW_EVENT_NOTIFY
 
+// 热更配置资产在 Content 中的固定资产路径（打进热更 pak 后由该路径加载）。
+// 在 /Game/Hotfix 下建一个 UShopperHotfixConfig 实例即可，文件名需与路径末段一致。
+static const TCHAR* GShopperHotfixConfigPath = TEXT("/Game/Hotfix/ShopperHotfixConfig.ShopperHotfixConfig");
+
 // ───────────────────────────────────────────────────────────
 // 基类钩子覆盖：连接与帧配置
 // ───────────────────────────────────────────────────────────
@@ -23,6 +30,13 @@ void UShopperSocketSubsystem::InitFrameConfig(FGameSocketFrameConfig& OutConfig)
 {
 	OutConfig = FGameSocketFrameConfig{};
 	// shopper 约定：小端 / length 含帧头 / md5 末字节。仅以下两项取自配置。
+	// 优先用热更包覆盖值，回退编译期 ShopperSettings。
+	if (const UShopperHotfixConfig* HF = HotfixConfig.Get())
+	{
+		OutConfig.bUseFrameChecksum = HF->bUseFrameChecksum;
+		OutConfig.PacketMaxSize     = HF->PacketMaxSize;
+		return;
+	}
 	if (const UShopperSettings* Cfg = GetDefault<UShopperSettings>())
 	{
 		OutConfig.bUseFrameChecksum = Cfg->bUseFrameChecksum;
@@ -32,12 +46,20 @@ void UShopperSocketSubsystem::InitFrameConfig(FGameSocketFrameConfig& OutConfig)
 
 bool UShopperSocketSubsystem::ShouldAutoConnect() const
 {
+	if (const UShopperHotfixConfig* HF = HotfixConfig.Get())
+		return HF->bAutoConnect;
 	const UShopperSettings* Cfg = GetDefault<UShopperSettings>();
 	return Cfg && Cfg->bAutoConnect;
 }
 
 void UShopperSocketSubsystem::GetDefaultEndpoint(FString& OutHost, int32& OutPort) const
 {
+	if (const UShopperHotfixConfig* HF = HotfixConfig.Get())
+	{
+		OutHost = HF->SocketHost;
+		OutPort = HF->SocketPort;
+		return;
+	}
 	const UShopperSettings* Cfg = GetDefault<UShopperSettings>();
 	if (Cfg)
 	{
@@ -48,14 +70,60 @@ void UShopperSocketSubsystem::GetDefaultEndpoint(FString& OutHost, int32& OutPor
 
 float UShopperSocketSubsystem::GetHeartbeatInterval() const
 {
+	if (const UShopperHotfixConfig* HF = HotfixConfig.Get())
+		return HF->HeartbeatInterval;
 	const UShopperSettings* Cfg = GetDefault<UShopperSettings>();
 	return Cfg ? Cfg->HeartbeatInterval : 15.f;
 }
 
 float UShopperSocketSubsystem::GetReconnectInterval() const
 {
+	if (const UShopperHotfixConfig* HF = HotfixConfig.Get())
+		return HF->ReconnectInterval;
 	const UShopperSettings* Cfg = GetDefault<UShopperSettings>();
 	return Cfg ? Cfg->ReconnectInterval : 3.f;
+}
+
+void UShopperSocketSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// 绑定热重载管理器的 pak 挂载广播：热更包挂上后自动加载并应用 socket 覆盖配置。
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UHotReloadManager* HR = GI->GetSubsystem<UHotReloadManager>())
+		{
+			HR->OnHotfixPakMounted.AddUObject(this, &UShopperSocketSubsystem::OnHotfixPakMounted);
+		}
+	}
+}
+
+void UShopperSocketSubsystem::OnHotfixPakMounted(const FString& PakPath)
+{
+	// 热更包挂上后，按固定资产路径加载覆盖配置（该资产随 pak 下发）。
+	if (UShopperHotfixConfig* Cfg = LoadObject<UShopperHotfixConfig>(nullptr, GShopperHotfixConfigPath))
+	{
+		ApplyHotfixConfig(Cfg);
+	}
+	else
+	{
+		UE_LOG(LogShopperSocket, Warning,
+			TEXT("[ShopperSocket] 热更包已挂载（%s），但未找到 Hotfix 配置：%s"),
+			*PakPath, GShopperHotfixConfigPath);
+	}
+}
+
+void UShopperSocketSubsystem::ApplyHotfixConfig(UShopperHotfixConfig* Cfg)
+{
+	HotfixConfig = Cfg;
+	ReloadConfig();   // 重新读帧格式 + 清缓存地址，下次连接用新值
+	if (Cfg)
+	{
+		UE_LOG(LogShopperSocket, Log,
+			TEXT("[ShopperSocket] 已应用热更配置：%s:%d 心跳=%.1fs 重连=%.1fs 校验=%s"),
+			*Cfg->SocketHost, Cfg->SocketPort, Cfg->HeartbeatInterval,
+			Cfg->ReconnectInterval, Cfg->bUseFrameChecksum ? TEXT("on") : TEXT("off"));
+	}
 }
 
 void UShopperSocketSubsystem::BuildHeartbeatPayload(int32& OutProtocol, TArray<uint8>& OutData)

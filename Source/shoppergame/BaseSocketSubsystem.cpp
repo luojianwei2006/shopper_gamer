@@ -76,6 +76,22 @@ void UBaseSocketSubsystem::Disconnect()
 	CloseSocketAndNotify();
 }
 
+void UBaseSocketSubsystem::ReloadConfig()
+{
+	// 重新读取帧格式（hotfix 可能改变 checksum / 单包上限约定）
+	InitFrameConfig(FrameConfig);
+
+	// 清除缓存的连接地址，使下一次连接重新解析（支持 hotfix 改 host / port）
+	CachedHost.Reset();
+	CachedPort = 0;
+	bHasCachedEndpoint = false;
+
+	// 心跳累加归零，避免切换间隔后一次性补发一堆心跳
+	HeartbeatAccum = 0.f;
+
+	UE_LOG(LogShopperSocket, Log, TEXT("[%s] 配置已热重载（下次连接生效）"), *GetLogTag());
+}
+
 bool UBaseSocketSubsystem::SendMessage(int32 Protocol, const TArray<uint8>& Data)
 {
 	if (Protocol < 0 || Protocol > 65535)

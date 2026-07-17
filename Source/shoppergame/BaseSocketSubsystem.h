@@ -106,6 +106,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Socket")
 	bool SendMessage(int32 Protocol, const TArray<uint8>& Data);
 
+	// 热重载配置：重新读取帧格式并清除缓存的连接地址，使下一次连接使用最新参数
+	// （含热更 pak 覆盖值）。已建立的连接不会强制断开，仅心跳间隔等即时生效，
+	// 帧格式 / 地址变更于下次（重）连接时生效。
+	UFUNCTION(BlueprintCallable, Category = "Socket")
+	void ReloadConfig();
+
 	// 连接状态变化（连上 / 断开）
 	UPROPERTY(BlueprintAssignable, Category = "Socket")
 	FOnSocketConnectionChanged OnConnectionChanged;
