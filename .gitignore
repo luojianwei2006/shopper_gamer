@@ -1,5 +1,18 @@
 # ──────────────────────────────────────────────────────────────
-# Unreal Engine 5 生成物（切勿提交，体积大且机器相关）
+# OS / 编辑器噪音 (OS / editor noise)
+# ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+*.DotSettings.user
+*.user
+
+# ──────────────────────────────────────────────────────────────
+# Unreal Engine 5 生成物（提交代码时必须忽略，体积大且机器相关）
+# UE5 generated artifacts (must ignore when committing code)
 # ──────────────────────────────────────────────────────────────
 Binaries/
 Intermediate/
@@ -14,30 +27,11 @@ Build/Mac/
 Build/Windows/
 
 # ──────────────────────────────────────────────────────────────
-# IDE / 编辑器
+# 本地预览 / 构建产物（设计文档 / Web 原型无关）
+# Local preview / build artifacts (unrelated to design docs / web prototype)
 # ──────────────────────────────────────────────────────────────
-.vs/
-.vscode/
-.idea/
-*.VC.db
-*.opendb
-
-# Rider / 用户级设置
-*.DotSettings.user
-*.user
-
-# ──────────────────────────────────────────────────────────────
-# macOS
-# ──────────────────────────────────────────────────────────────
-.DS_Store
-.AppleDouble
-.AppleDB
-.Spotlight-V100
-.Trashes
-.fseventsd
-
-# ──────────────────────────────────────────────────────────────
-# 其它
-# ──────────────────────────────────────────────────────────────
-*.local
-Thumbs.db
+node_modules/
+dist/
+build/
+*.log
+**/.cache/
