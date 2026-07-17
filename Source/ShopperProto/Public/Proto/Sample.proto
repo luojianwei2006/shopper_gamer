@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package shopper.sample;
+
+// 示例消息：仅用于验证 protobuf 管线能编译运行。
+// 实际项目里删掉这个文件，换成你自己的 .proto 生成的 .pb.h / .pb.cpp 即可。
+message SampleLogin {
+  int32  uid       = 1;
+  string name      = 2;
+  int64  timestamp = 3;
+  bool   is_guest  = 4;
+}

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+option java_package = "com.yanhuo.protobuf";
+
+enum CmdProto {
+  LOGIN = 0;
+  PING = 1;
+  LOGOUT = 2;
+
+  SERVER_PING = 3;  // 针对服务器的心跳包（用于测试是否存活）
+
+  MATCH = 10; // 匹配玩家
+
+  NEW_ROOM = 11;  // 新房间
+
+  START_GAME = 12;  // 开始游戏
+
+  END_GAME = 13;  // 游戏结束
+
+  ROOM_UPDATE = 14; // 更新房间信息
+
+  // 游戏协议要大于1000
+
+  CHAT = 200;
+}
+
+message User {
+  string account = 1;
+  string nickname = 2;
+  string headimg = 3;
+  int32 exp = 4;
+  int32 level = 5;
+  int32 id = 6;
+  string headframe = 7; // 头像框
+  string mobile = 8;
+}
+
+//0-准备，1-等待，2-准备，3-开始游戏，4-游戏中，5-游戏结束，6-结算完成，7-关闭，8-移除
+enum RoomStatus {
+  INITED = 0;
+  WAITTING = 1;
+  READY = 2;
+  STARTED = 3;
+  GAMING = 4;
+  ENDED = 5;
+  SETTLED = 6;
+  CLOSED = 7;
+
+  CLEANED = 8;
+}
+
+// 心跳包
+message server_ping_req {
+  uint64 ticket = 1;
+}
+
+// 心跳包返回
+message server_ping_resp {
+  uint64 ticket = 1;
+}

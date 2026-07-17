@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+option java_package = "com.yanhuo.protobuf";
+
+import "common.proto";
+
+// 喇叭协议分配到100-199
+enum SpeakerProto {
+  NULL = 0;    // 占位
+
+  LOGIN_SPEAKER = 100;  // 登录
+
+  PING_SPEAKER = 101;   // 心跳包
+
+  ANNOUNCE = 102;   // 公告
+
+  BALANCE_NOTIFY = 103;  // 余额变更通知
+
+  ITEM_LIST_NOTIFY = 104;  // 道具列表通知
+
+  ITEM_UPDATE_NOTIFY = 105;  // 道具更新通知
+
+  ITEM_REFRESH_COUNTDOWN_NOTIFY = 106;  // 道具刷新倒计时通知
+
+  LEVEL_EXP_NOTIFY = 107;  // 角色等级经验变更通知
+
+  NEW_MAIL_NOTIFY = 108;  // 新邮件通知
+
+  NEW_EVENT_NOTIFY = 109; // 新事件通知
+
+  HTTP_NOTIFY = 110;  // 来自接口的通知
+}
+
+// 登录服务器
+message login_speaker_req {
+  string token = 1;
+}
+
+message login_speaker_resp {
+  int32 code = 1;
+  string msg = 2;
+  User user = 3;
+  int32 min_limit = 4;  // 铲子道具最大数量
+  int32 bomb_limit = 5;  // 炸弹道具最大数量
+}
+
+// 公告提醒
+message announce_notify {
+   string content = 1;  // 公告内容
+}
+
+// 余额变更
+message balance_notify {
+   int64 balance = 1;  // 余额
+   int64 freeze_balance = 2;    // 冻结余额
+   int64 diamond = 3;   // 钻石
+   int64 bonus = 4; // Bonus
+   int32 star = 5;
+   int32 flag = 6;  // 0-普通,1-商城,2-Bingo额外奖励
+}
+
+message ping_speaker {
+  uint64 ticket = 1;
+  string action = 2;  // 当前停留在那个位置
+  string subui =3;  // 子界面
+  int32 duration = 4;  // 停留时间，秒为单位，最长不超过15秒
+}
+
+// 物品道具列表
+message item {
+  int32 id = 1;
+  int32 entry = 2;  // 道具类型
+  int32 num = 3;  // 数量
+}
+
+// 道具列表
+message item_list_notify {
+  repeated item items = 1;
+}
+
+// 道具更新，如果是删除，则数量为0
+message item_update_notify {
+  repeated item items = 1;
+  int32 flag = 2; // 0-普通,1-商城,2-Bingo额外奖励
+}
+
+
+message item_refresh_countdown_notify {
+    uint64  refresh_ticket = 1;   // 刷新时间戳
+    int32 item_id = 2;
+}
+
+// 角色等级经验变更
+message level_exp_notify {
+  int32 level = 1;
+  int32 exp = 2;
+  int32 min_limit = 3;  // 铲子道具最大数量
+  int32 bomb_limit = 4;  // 炸弹道具最大数量
+  repeated item rewards = 5;  // 升级奖励
+}
+
+// 新邮件通知
+message new_mail_notify {
+}
+
+// 新通知
+message new_event_notify {
+  int32 flag = 1; // 标记，1-Bingo有状态变更，2-有新活动开启
+}
+
+// 来自接口的通知
+message http_notify {
+  string proto = 1; // 对应的协议
+  string content = 2;  // 通知内容
+}

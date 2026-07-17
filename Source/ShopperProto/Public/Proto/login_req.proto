@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option java_package = "com.yanhuo.protobuf";
+
+import "common.proto";
+
+// 定义登陆
+message login_req {
+  string token = 1;
+  int32 role = 2;	// 测试用，由玩家选择的角色
+}
+
+// 定义登陆返回
+message login_resp {
+  int32 code = 1;
+  string msg = 2;
+  User user = 3;
+}
+
+// 定义登出
+message logout_req {
+  
+}
+
+message logout_resp {
+  int32 code = 1;
+  string msg = 2;
+}
+
+// 心跳包
+message ping_req {
+  uint64 ticket = 1;
+}
+
+message ping_resp {
+  uint64 ticket = 1;
+}
