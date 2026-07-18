@@ -7,11 +7,14 @@
 #include "NiagaraFunctionLibrary.h"
 #include "shoppergameCharacter.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"    // UGameInstance::GetSubsystem<> 需要完整类型
 #include "EnhancedInputComponent.h"
 #include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "shoppergame.h"
+#include "WidgetManager.h"
+#include "Blueprint/UserWidget.h"
 
 AshoppergamePlayerController::AshoppergamePlayerController()
 {
@@ -23,6 +26,27 @@ AshoppergamePlayerController::AshoppergamePlayerController()
 	DefaultMouseCursor = EMouseCursor::Default;
 	CachedDestination = FVector::ZeroVector;
 	FollowTime = 0.f;
+}
+
+void AshoppergamePlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 启动 UI：由 WidgetManager 异步热加载后创建并显示（不阻塞）。
+	// StartupWidgetKey 默认 None（不自动弹），在蓝图子类或基类默认值里设 "Login" 即可开屏显示。
+	if (!StartupWidgetKey.IsNone())
+	{
+		if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+		{
+			if (UWidgetManager* WM = GI->GetSubsystem<UWidgetManager>())
+			{
+				if (UUserWidget* W = WM->CreateWidgetOfType(StartupWidgetKey, this))
+				{
+					W->AddToViewport();
+				}
+			}
+		}
+	}
 }
 
 void AshoppergamePlayerController::SetupInputComponent()

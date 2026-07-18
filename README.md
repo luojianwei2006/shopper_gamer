@@ -171,3 +171,57 @@ Source/
 ## 环境配置 / Environment
 
 在「项目设置 → Shopper 环境配置」（`UDeveloperSettings`，写入 `DefaultGame.ini`）维护：环境（开发 / 测试 / 正式各一套基地址）、Socket（地址 / 端口 / 自动建链 / 心跳间隔 / 重连间隔 / 单包上限 / 是否带帧校验）、版本号。生效优先级：`SHOPPER_FORCE_ENV_*` 宏 > 命令行 `-ShopperEnv=xxx` > `ActiveEnvironment` 配置。
+
+## 启动加载闸门与运行时热更 / Boot Loading Gate & Runtime Hotfix
+
+> 启动期资源加载闸门：先异步预载热更包、UI Widget、界面图片与重资源，进度聚合后由蓝图 `OpenLevel` 进入目标关；可选挂载热更 pak 并应用 socket 配置覆盖层（运行时替换，不改 `ShopperSettings`）。
+> Boot-time loading gate: async-preload hotfix pak, UI widgets, UI textures and heavy assets, then Blueprint `OpenLevel` into the target level; optionally mount a hotfix pak and apply a socket-config override layer (runtime-only, `ShopperSettings` untouched).
+
+### 关键类 / Key Classes
+
+| 类 | 类型 | 职责 |
+| --- | --- | --- |
+| `UHotReloadManager` | `UGameInstanceSubsystem` | 挂载 / 卸载热更 pak（`MountPak` / `UnmountPak`），挂载后广播 `OnHotfixPakMounted` |
+| `UShopperHotfixConfig` | `UPrimaryDataAsset` | 热更配置覆盖层（host / port / 心跳 / 帧格式）；随 pak 下发，运行时覆盖默认 `ShopperSettings` |
+| `ULoadingPlanAsset` | `UPrimaryDataAsset` | 加载计划：热更路径 / 配置 / WidgetRegistry / UI 分组 / 重资源 / 目标关 |
+| `ULoadingSubsystem` | `UGameInstanceSubsystem` | 加载闸门：按 Phase 异步加载 + 聚合进度广播 |
+| `UWidgetManager` | `UGameInstanceSubsystem` | 按 `WidgetRegistry` 异步预载 / 重解析 Widget 软类 |
+| `UWidgetRegistry` | `UPrimaryDataAsset` | Widget 登记表：`TMap<FName, TSoftClassPtr<UUserWidget>>`，key = 逻辑名（数量不限） |
+
+### 加载相位 / Loading Phases
+
+`ULoadingSubsystem` 按权重顺序推进（权重之和 = 1.0），全部走 `FStreamableManager::RequestAsyncLoad` / pak 挂载异步路径，**不阻塞游戏线程**：
+
+| Phase | 权重 | 内容 |
+| --- | --- | --- |
+| 0 Hotfix | 0.15 | 挂载热更 pak（路径空则跳过）+ 应用 `HotfixConfig`（空则回退默认 `ShopperSettings`） |
+| 1 Widgets | 0.20 | 预载 `WidgetRegistry` 登记的 Widget 软类（已加载则跳过） |
+| 2 UI | 0.25 | 按 `UILoadGroups` 顺序逐组预载界面图片（每组可显示独立状态文案） |
+| 3 Assets | 0.40 | 预载通用重资源 + 关卡专用资源（`LevelPreloadAssets`） |
+
+进度由 C++ 聚合后通过 `OnLoadingProgress(float Percent, FText Status)` 广播；全部完成后通过 `OnLoadingComplete(FName TargetLevel)` 广播目标关名。
+
+### C++ / 蓝图边界 / Boundary
+
+- **C++（引擎层）**：异步加载、pak 挂载、进度计算与聚合、相位调度。
+- **蓝图（设计师层）**：`OnLoadingProgress` → 刷新进度条 + 状态文案；`OnLoadingComplete` → `Open Level`；`WBP_Loading` 仅含 ProgressBar + Text，**不得硬引用预载的 Widget 类**（否则无法瞬时显示）。
+
+### 接线步骤 / Wiring
+
+1. 建轻量 **Loading 关卡**（如 `/Game/Loading/Loading`），设为 `Project Settings → Maps & Modes → Game Default Map`。
+2. 建 `WBP_Loading`（ProgressBar + Text），暴露 `SetProgress(float)` / `SetStatus(FText)`。
+3. Loading 关卡 `BeginPlay`：
+   - `Get Game Instance → GetSubsystem(Loading Subsystem)`；
+   - **先** `Bind` `OnLoadingProgress` / `OnLoadingComplete`，`CreateWidget(WBP_Loading)` 并 `AddToViewport`；
+   - **最后** 调 `StartLoading(你的 LoadingPlan)`。
+4. `OnLoadingComplete` 里 `Open Level(TargetLevel)`。
+
+> ⚠️ **Bind 必须在 `StartLoading` 之前**：`StartLoading` 内部同步发出首波进度广播，且若 LoadingPlan 的 `UILoadGroups` / `PreloadAssets` 皆空，Phase 会同步级联到 `OnLoadingComplete`——顺序反了会导致首波（甚至整轮）广播丢失、进度条不动或跳过加载直接跳关。
+
+### 资产配置 / Asset Setup
+
+- **WidgetRegistry**：用 *Miscellaneous → Data Asset* 建 `UWidgetRegistry` **实例**（不是蓝图类），在 `Widgets` 映射按逻辑名登记任意数量 Widget 软类（key 与 `PlayerController.StartupWidgetKey`、`WidgetManager::CreateWidgetOfType(Key)` 对应）。
+- **LoadingPlan**：同法建 `ULoadingPlanAsset` 实例，填 Hotfix 路径 / 配置 / WidgetRegistry 引用 / UI 分组 / 重资源 / 目标关；可按目标关建多份（`LP_Login` / `LP_Menu` / `LP_Game`）。
+- 路径类字段（`HotfixPakPath` 等）留空 = 跳过对应步骤，纯本地开发模式下完全合法。
+
+> ⚠️ `TSoftObjectPtr<UWidgetRegistry>` / `TSoftObjectPtr<UShopperHotfixConfig>` 字段要的是**数据资产实例**，不是蓝图类资产——在资产选择器里建 Data Asset 而非 Blueprint Class，否则 picker 过滤不到。

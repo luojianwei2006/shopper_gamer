@@ -7,6 +7,8 @@
 #include "GameFramework/PlayerController.h"
 #include "shoppergamePlayerController.generated.h"
 
+class UWidgetManager;   // 启动 UI 热加载（GameInstanceSubsystem），不在此硬引用其头
+
 class UNiagaraSystem;
 class UInputMappingContext;
 class UInputAction;
@@ -44,6 +46,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* SetDestinationTouchAction;
 
+	/** 启动时要显示的 UI（热加载后由 WidgetManager 创建）；设为 None 则不自动显示 */
+	UPROPERTY(EditAnywhere, Category = "UI")
+	FName StartupWidgetKey = NAME_None;
+
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
 
@@ -60,6 +66,9 @@ public:
 
 	/** Constructor */
 	AshoppergamePlayerController();
+
+	/** 启动后由 WidgetManager 异步创建并显示 StartupWidgetKey 指定的 UI（热加载，不阻塞） */
+	virtual void BeginPlay() override;
 
 protected:
 

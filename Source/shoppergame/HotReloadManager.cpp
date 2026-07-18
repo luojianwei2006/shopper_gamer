@@ -14,17 +14,10 @@ void UHotReloadManager::Initialize(FSubsystemCollectionBase& Collection)
 
 FPakPlatformFile* UHotReloadManager::GetPakPlatformFile()
 {
-	IPlatformFile* PF = &FPlatformFileManager::Get().GetPlatformFile();
-	while (PF)
-	{
-		// Pak 包装器的类型名固定为 "PakFile"
-		if (FCString::Stricmp(PF->GetType(), FPakPlatformFile::GetTypeName()) == 0)
-		{
-			return static_cast<FPakPlatformFile*>(PF);
-		}
-		PF = PF->GetLowerLevel();
-	}
-	return nullptr;
+	// FindPlatformFile 会沿平台文件栈（含下层）按类型名查找，
+	// 比手动 GetLowerLevel 遍历更稳：编辑器 / shipping 都能正确取到 PakPlatformFile。
+	IPlatformFile* PF = FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName());
+	return static_cast<FPakPlatformFile*>(PF);
 }
 
 bool UHotReloadManager::MountPak(const FString& PakPath, int32 PakOrder)
@@ -79,7 +72,7 @@ bool UHotReloadManager::UnmountPak(const FString& PakPath)
 	return bOk;
 }
 
-void UHotReloadManager::LoadAssetAsync(const TSoftObjectPath& AssetPath, FOnHotAssetLoaded OnLoaded)
+void UHotReloadManager::LoadAssetAsync(const FSoftObjectPath& AssetPath, FOnHotAssetLoaded OnLoaded)
 {
 	// 保存路径副本供回调里 TryLoad；OnLoaded 为动态委托，按值捕获即可
 	FSoftObjectPath Path = AssetPath;

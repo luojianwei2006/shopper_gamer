@@ -37,6 +37,7 @@ public class shoppergame : ModuleRules
 			"AssetRegistry",  // 热更 pak 挂载后刷新资源注册表（ScanFilesSynchronous）
 			"Sockets",       // 持久化 TCP 长链接
 			"Networking",    // FIPv4Endpoint / FInternetAddr
+			"PakFile",       // FPakPlatformFile::Mount/Unmount —— 运行时热更 pak 挂载（链接期需要此模块）
 			"ShopperProto"   // protobuf 运行时：消息 <-> 字节互转（依赖该模块才能 #include 其头与链接 libprotobuf）
 		});
 
