@@ -225,3 +225,51 @@ Source/
 - 路径类字段（`HotfixPakPath` 等）留空 = 跳过对应步骤，纯本地开发模式下完全合法。
 
 > ⚠️ `TSoftObjectPtr<UWidgetRegistry>` / `TSoftObjectPtr<UShopperHotfixConfig>` 字段要的是**数据资产实例**，不是蓝图类资产——在资产选择器里建 Data Asset 而非 Blueprint Class，否则 picker 过滤不到。
+
+## UI 动效体系 / UI FX System
+
+> 按钮点击脉冲（放大→缩回）、面板弹出回弹（过冲→回落）、点击/弹出音效，以及动画完成回调。两种接入方式：**继承基类**（新控件）或**外挂函数库**（改造已有控件），二者表现一致、底层都用引擎全局单 `FTicker` 驱动补间（UE5.6 已移除 `UUserWidget::SetTickEnabled`，故不用 widget Tick）。
+> Button click pulse (scale up/down), panel popup bounce (overshoot/recoil), click/popup SFX, and an animation-complete callback. Two integration styles: **inherit a base class** (new widgets) or **attach via a function library** (retrofit existing widgets). Both share the same look and are driven by one module-level `FTicker`.
+
+### 关键类 / Key Classes
+
+| 类 | 类型 | 职责 |
+| --- | --- | --- |
+| `UWB_ButtonBase` | `UUserWidget`（`Abstract`） | 通用按钮基类：内置点击脉冲 + 音效 + `OnClicked` 广播；蓝图派生一次 `WBP_Button` 复用 |
+| `UWP_PanelBase` | `UUserWidget`（`Abstract`） | 通用面板基类：构造时播放弹出回弹 + 音效；`Play On Construct` 可关 |
+| `UShopperUIFx` | `UBlueprintFunctionLibrary` | 外挂式动效库：`BindClickFx` 一行挂接、`PlayButtonPulse` / `PlayPanelBounce` / `PlayClickSound` 手动调用 |
+
+### 效果与驱动 / Effects & Driver
+
+- **脉冲（Pulse）**：`Scale = 1 + (Peak-1)·sin(α·π)`，从 1.0 → 峰值（默认 1.15）→ 1.0 平滑一圈；默认时长 0.18s。
+- **回弹（Bounce）**：Back 缓动 `1 + C3·(x-1)³ + C1·(x-1)²`，从 `StartScale`（默认 0.0，即「从无到有」）弹到 1.0，自带过冲回落；默认时长 0.38s，`Overshoot` 控制回弹强度（默认 1.6）。
+- **音效**：`UGameplayStatics::PlaySound2D`（无需世界音源）；脉冲/点击音效在动画**开始时**播放，`PlayButtonPulse` 支持 `SoundVolume` 音量倍率。
+- **完成回调**：`PlayButtonPulse` / `PlayPanelBounce` 的 `OnComplete` 在动画**结束时**触发，业务逻辑（开店 / 关界面 / 跳转）写在此回调里。
+- **驱动**：所有补间由模块级单 `FTicker`（`FTSTicker::GetCoreTicker().AddTicker(...)`）统一推进；无活动动画且无绑定器时自动 `Reset()` 注销 ticker，**零常驻开销**。`BindClickFx` 为每个按钮建 `UShopperButtonFxBinder` 并 `AddToRoot` 保活，按钮销毁时由 ticker 自动 `RemoveFromRoot` 清理，无悬空委托。
+
+### 接入方式一：继承基类（新控件）/ Approach A — Inherit Base Class
+
+1. Content Browser 右键 → Widget Blueprint → Parent Class 选 **`WB_ButtonBase`**，命名 `WBP_Button`。
+2. 画布内放一个 **Button**（必须命名 `Button`，`BindWidget` 按名绑定）与一个可选 **TextBlock**（命名 `Label` 显示标题）。
+3. Details → `UI|FX` 设 `Click Sound`（留空不播）；可调 `Click Peak Scale` / `Click Duration` / `Scale Self`。
+4. 父级菜单拖入 `WBP_Button` 实例，像普通 Button 一样绑 **`OnClicked`**（基类内部已 `Broadcast`）写业务逻辑。
+5. 面板同理：建 `WBP_PanelBase` 派生控件，设 `Bounce Sound`，构造即播回弹；`Play Bounce In` 节点可在再次显示时重播。
+
+> 注：`WB_ButtonBase` / `WP_PanelBase` 为纯 `UUserWidget` **无可视化树**，必须派生蓝图才能摆进 UMG；仅建**一个** `WBP_Button` 复用即可，无需每个按钮一个蓝图。
+
+### 接入方式二：外挂函数库（改造已有控件）/ Approach B — Attach via Library
+
+不改父类、不替换控件，在按钮所在 Widget 的 `Construct` / `OnInitialized` 里调一次即可：
+
+- **`BindClickFx(Button, Sound)`** —— 一行给任意已有 `UButton` 挂上「点击脉冲 + 音效」，之后该按钮每次点击都自带效果。
+- **`PlayButtonPulse(Target, OnComplete, PeakScale=1.15, Duration=0.18, Sound=nullptr, SoundVolume=1.0)`** —— 手动在已有按钮的 `OnClicked` 末尾调，传 `OnComplete` 回调写响应逻辑。
+- **`PlayPanelBounce(Target, OnComplete, Duration=0.38, StartScale=0.0, Overshoot=1.6)`** —— 手动在面板构造时调。
+- **`PlayClickSound(WorldContextObject, Sound, Volume=1.0)`** —— 单独播一次点击音效。
+
+### ⚠️ 已知约束 / Notes
+
+- **缩放锚点**：脉冲 / 回弹走 `SetRenderScale`，务必将控件 / 按钮的 **Render Transform Pivot 设为 0.5/0.5**，否则从角落弹出而非居中放大。
+- **UE5.6 API**：`UUserWidget::SetTickEnabled` / `IsTickEnabled` 已被移除（tick 开关改为私有 `TickFrequency`），本系统改用 `FTicker`，跨版本零依赖。
+- **委托参数顺序**：`PlayButtonPulse` / `PlayPanelBounce` 的 `OnComplete` 排在 `Target` 之后、所有带默认值参数之前（C++ 默认参数后置规则 + UHT 不支持委托构造式默认值）。
+- **`OnClicked` 签名**：UE5.6 的 `UButton::OnClicked` 为零参委托（`FOnButtonClickedEvent`），绑定回调不得带参。
+
