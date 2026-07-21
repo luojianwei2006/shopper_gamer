@@ -86,8 +86,10 @@ Source/
     ├── BaseSocketSubsystem.*     # 【框架】通用 TCP 长链接基类（抽象）
     ├── ShopperSocketSubsystem.*  # 【业务】喇叭协议实现（继承基类）
     ├── ShopperSettings.*         # 项目设置：环境地址 / Socket 配置 / 心跳间隔 / HTTP 基地址
-    ├── HttpProtoBFL.*            # 【业务】游客登录 / Token 续期 / 钱包 / 商品列表 蓝图函数库
-    ├── HttpProtoStruct.*         # 全部 HTTP 请求/响应 USTRUCT（登录/钱包/商店/通用 JSON 响应）
+    ├── HttpProtoBFL.*            # 【业务】游客登录 / Token 续期 / 钱包 / 商品列表 蓝图函数库（参考样本）
+    ├── HttpProtoStruct.*         # 请求/响应 USTRUCT（登录/钱包/商店/通用 JSON 响应）
+    ├── ShopperApiBFL.*           # 【业务】API-Server 全套客户端接口封装（User/Shop/Sign/Withdraw/Mail/Task/Banner/Game/Wabao/Expedition/Chest/AdsTask/Pirate）
+    ├── ShopperApiStructs.*       # 上述接口的 请求/响应 USTRUCT + 委托（含 6 个数组型强类型列表响应）
     ├── ShopperHttpClient.*       # 【框架】泛型 HTTP 客户端（GameInstanceSubsystem，模板 Request<TReq,TResp>）
     ├── ShopperApiLibrary.*       # 【示例】Login / GetPlayerProfile 接口封装样例（照抄新增接口）
     ├── ShopperHttpTypes.*        # HTTP 动词枚举 EShopperHttpVerb 等类型
@@ -309,11 +311,13 @@ template <typename TRequest, typename TResponse>
 void Request(EShopperHttpVerb Verb, const FString& Endpoint, const TRequest& RequestStruct,
     TFunction<void(bool bSuccess, const TResponse& Response, int32 HttpCode)>&& OnComplete,
     const FString& BaseUrlOverride = FString(),
-    const TMap<FString, FString>& AdditionalHeaders = TMap<FString, FString>());
+    const TMap<FString, FString>& AdditionalHeaders = TMap<FString, FString>(),
+    const TMap<FString, FString>& QueryParams = TMap<FString, FString>());
 ```
 
 - **`TRequest` / `TResponse` 必须是带 `GENERATED_BODY()` 且字段标 `UPROPERTY` 的 USTRUCT**，`FJsonObjectConverter` 据此自动（反）序列化（结构即 JSON 契约）。
 - **Verb 自适应**：`Post` / `Put` → 请求结构体序列化进 JSON body；`Get` / `Delete` → 请求结构体展平为 URL query（`字段名=UrlEncode(值)`）。
+- **`QueryParams`（任意 verb）**：显式 `?key=UrlEncode(value)`，用于支撑 `POST /shop/buy?shopId=1` 这类「POST + URL 查询参数」接口（文档大量使用）。
 - **自定义头**：`AdditionalHeaders` 在 `Content-Type` 之后写入，用于注入 `Authorization: <token>` 等鉴权头。
 - **在途托管**：请求存入 `TArray<TSharedPtr<IHttpRequest>> ActiveRequests`，回调用 `TWeakObjectPtr<UShopperHttpClient>` 自检存活；子系统 `Deinitialize` 时统一 `Cancel`，无悬空委托。
 - **超时 / 日志**：`ShopperHttpSettings`（项目设置可配）控制 `TimeoutSec` 与 `ShouldLog`。
@@ -333,6 +337,38 @@ void Request(EShopperHttpVerb Verb, const FString& Endpoint, const TRequest& Req
 | `ShopperApiLibrary`（**示例**） | `Login` / `GetPlayerProfile` | 示范 POST/GET 两种风格，**新增接口照抄这三步**：① 定义 `FReq`/`FResp` USTRUCT → ② `DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnXxxResp, bool, bSuccess, FXxxResp, Resp)` → ③ 写 `UFUNCTION` 调 `Client->Request<FReq,FResp>(...)` |
 
 > **回调契约铁律**：动态委托第二参数一律是**类型化响应结构体**（如 `FLoginResponse` / `FWalletResponse` / `FShopListResponse`），**绝不返回 JSON 字符串**。泛型客户端已完成反序列化，蓝图直接拿 struct 字段用，无需二次解析。
+
+### API-Server 全套接口封装 / Full Endpoint Wrappers — `UShopperApiBFL`
+
+`UShopperApiBFL`（`ShopperApiBFL.h/.cpp` + `ShopperApiStructs.h`）按 **API-Server 客户端接口文档** 把全部客户端可调用的接口收口成 `BlueprintCallable` 节点，**严格复用 `SendGetWallet` 的写法**：取 `UShopperHttpClient` 子系统 → 构造 `Authorization` 头 → `Client->Request<TReq,TResp>(Verb, Endpoint, Req, λ, Host, Headers, QueryParams)` → 回调交还类型化 struct。
+
+**响应类型策略**（与项目「回调契约铁律」一致）：
+- `data` 为**对象** → 复用 `FShopperJsonResponse`（委托 `FOnShopperApiJson`），蓝图用 `UShopperJsonLibrary` 按 key 取字段；
+- `data` 为**数组** → 必须强类型（`FJsonObjectWrapper` 装不下数组），共 6 个：`FMailListResponse` / `FGameModeListResponse` / `FGameRecordListResponse` / `FGameRankResponse` / `FWalletLogListResponse` / `FWabaoListResponse`；
+- 空 body 的 POST 用占位结构 `FShopperEmptyReq`；`POST` 带 `?key=value` 由封装函数内部构造 `QueryParams` 传入。
+
+| 模块 | 封装函数（`SendXxx`） | 端点（verb） |
+| --- | --- | --- |
+| User | `SendUserSendAuthCode` / `SendUserCheckAuthCode` | `user/send_authcode` / `user/check_authcode`（POST，JSON body） |
+| User | `SendUserRegister` | `user/register`（POST） |
+| User | `SendUserUpdate` / `SendUserUpdateLocation` / `SendUserUpdateDeviceToken` | `user/update` / `user/update_location` / `user/update_device_token`（POST） |
+| User | `SendUserBeginner` / `SendUserGameConfigVersion` / `SendUserNewestRecord` | `user/beginner` / `user/game_config_version` / `user/newest_record`（POST） |
+| Shop | `SendShopBuy` | `shop/buy?shopId=&method=`（POST + query） |
+| Sign | `SendSignDaily` | `sign/sign`（POST） |
+| Withdraw | `SendWithdrawCanWithdraw` / `SendWithdrawSendAuthCode` / `SendWithdrawCheckAuthCode` / `SendWithdrawSubmit` / `SendWithdrawWalletLogs` | `withdraw/can_withdraw?amount=` / `withdraw/send_authcode` / `withdraw/check_authcode?authcode=&amount=` / `withdraw/withdraw`（POST） / `withdraw/wallet_logs?last_id=&last_date=&size=`（POST，强类型数组） |
+| Mail | `SendMailList` / `SendMailRead` / `SendMailReceive` | `mail/list?last_id=&size=`（强类型数组）/ `mail/read?id=` / `mail/receive?id=`（POST + query） |
+| Task | `SendTaskList` / `SendTaskUpdateProgress` / `SendTaskReward` | `task/tasks` / `task/update_progress?taskId=&progress=` / `task/reward?taskId=`（POST + query） |
+| Banner | `SendBannerList` / `SendBannerReceiveFreeGift` / `SendBannerBuy` | `banner/list` / `banner/receive_free_gift?entry=` / `banner/buy?bannerId=&method=`（POST + query） |
+| Game | `SendGameList`（强类型）/ `SendGameRank`（强类型）/ `SendGameRecords`（强类型）/ `SendGameNewestRecords`（强类型）/ `SendGameRecordDetail` / `SendGameReward` | `game/list` / `game/get_rank?id=` / `game/records?last_id=&size=` / `game/newst_records?last_id=&size=` / `game/record_detail?id=` / `game/reward?guid=`（POST + query） |
+| Wabao | `SendWabaoList`（GET，强类型）/ `SendWabaoStart` | `wabao/list`（GET）/ `wabao/start`（POST） |
+| Expedition | `SendExpeditionGetInfo`（GET）/ `SendExpeditionAttack` | `expedition/get_info`（GET）/ `expedition/attack?pos=`（POST + query） |
+| Chest | `SendChestStart` / `SendChestOpen` / `SendChestReward` | `chest/start?activityId=` / `chest/open?activityId=&pos=` / `chest/reward?activityId=`（POST + query） |
+| AdsTask | `SendAdsTaskList` / `SendAdsTaskReward` / `SendAdsTaskRewardAll` | `ads_task/tasks` / `ads_task/reward?taskId=` / `ads_task/reward_all`（POST + query） |
+| Pirate | `SendPirateMatch` | `pirate_battle/match?activityId=`（POST + query） |
+
+> **蓝图用法**：拖出 `ShopperApiBFL` 下的中文节点（如「购买商品」「邮件列表」「每日签到」），填 `Host`（可空→自动取项目设置基地址）、`Token`（来自登录响应/本地存档），绑定回调委托拿到类型化 `Response`；数组型列表直接 `ForEachLoop` 遍历 `data`。
+>
+> **未覆盖 / 说明**：① `user/send_authcode`、`user/check_authcode` 文档标注 `application/x-www-form-urlencoded`，本项目客户端统一以 **JSON body** 发送（与 `SendGetWallet` 一致）；若后端 `Strict` 要求 form，需在 `ShopperHttpClient` 增加 form 编码分支。② 第 16 节 Refer、第 17 节 Web（客户端仅打开 URL，非 HTTP 调用）、第 18 节 Payment Callbacks（服务端接收的 Webhook，非客户端调用）未实现。
 
 ### 通用 JSON 响应兜底 / Fallback JSON Response — `UShopperJsonLibrary` + `FShopperJsonResponse`
 

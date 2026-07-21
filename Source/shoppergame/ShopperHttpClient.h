@@ -63,7 +63,8 @@ public:
 	void Request(EShopperHttpVerb Verb, const FString& Endpoint, const TRequest& RequestStruct,
 		TFunction<void(bool bSuccess, const TResponse& Response, int32 HttpCode)>&& OnComplete,
 		const FString& BaseUrlOverride = FString(),
-		const TMap<FString, FString>& AdditionalHeaders = TMap<FString, FString>())
+		const TMap<FString, FString>& AdditionalHeaders = TMap<FString, FString>(),
+		const TMap<FString, FString>& QueryParams = TMap<FString, FString>())
 	{
 		const FString Base = BaseUrlOverride.IsEmpty() ? ResolveBaseUrl() : BaseUrlOverride;
 		FString Url = Base;
@@ -71,24 +72,32 @@ public:
 		Url += Endpoint.StartsWith(TEXT("/")) ? Endpoint.Mid(1) : Endpoint;
 
 		const bool bHasBody = (Verb == EShopperHttpVerb::Post || Verb == EShopperHttpVerb::Put);
+
+		// 收集 query 参数：
+		//  - GET / DELETE：请求结构体字段自动展平成 query
+		//  - 任意 verb：显式 QueryParams（支持 POST /shop/buy?shopId=1 这种写法）
+		FString QueryString;
 		if (!bHasBody)
 		{
-			// GET / DELETE：把请求结构体展平成 query（字段名=UrlEncode(值)）
 			TSharedPtr<FJsonObject> Json = FJsonObjectConverter::UStructToJsonObject(RequestStruct);
 			if (Json.IsValid())
 			{
-				FString Query;
 				for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Json->Values)
 				{
 					const FString Val = ShopperJsonValueToQueryString(Pair.Value);
-					Query += FString::Printf(TEXT("%s=%s&"), *Pair.Key, *FGenericPlatformHttp::UrlEncode(Val));
-				}
-				if (!Query.IsEmpty())
-				{
-					Query.RemoveFromEnd(TEXT("&"));
-					Url += TEXT("?") + Query;
+					QueryString += FString::Printf(TEXT("%s=%s&"), *Pair.Key, *FGenericPlatformHttp::UrlEncode(Val));
 				}
 			}
+		}
+		for (const TPair<FString, FString>& QP : QueryParams)
+		{
+			if (!QueryString.IsEmpty()) QueryString += TEXT("&");
+			QueryString += FString::Printf(TEXT("%s=%s"), *QP.Key, *FGenericPlatformHttp::UrlEncode(QP.Value));
+		}
+		if (!QueryString.IsEmpty())
+		{
+			QueryString.RemoveFromEnd(TEXT("&"));
+			Url += TEXT("?") + QueryString;
 		}
 
 		TSharedRef<IHttpRequest> ReqRef = FHttpModule::Get().CreateRequest();
