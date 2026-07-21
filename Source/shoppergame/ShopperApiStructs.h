@@ -168,7 +168,7 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnMailListDone, bool, bSuccess, FMailListRes
 
 // 10.1 游戏模式列表
 USTRUCT(BlueprintType)
-struct FGameMode
+struct FGameModeInfo
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") int32 id = 0;
@@ -186,7 +186,7 @@ struct FGameModeListResponse
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") int32 code = 0;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") FString msg;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") TArray<FGameMode> data;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") TArray<FGameModeInfo> data;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game") FString token;
 };
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGameModeListDone, bool, bSuccess, FGameModeListResponse, Response);
