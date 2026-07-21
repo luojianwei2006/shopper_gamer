@@ -1,5 +1,7 @@
 #include "ShopperRewardLibrary.h"
 #include "Internationalization/Regex.h"   // FRegexPattern / FRegexMatcher (UE5.6 路径，旧版为 HAL/Regex.h)
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 void UShopperRewardLibrary::ParseReward(const FString& Raw, FShopReward& OutReward, bool& bSuccess)
 {
@@ -58,4 +60,48 @@ void UShopperRewardLibrary::ParseBraceKeyValueList(const FString& Raw,
 		OutValues.Add(Matcher.GetCaptureGroup(2).TrimStartAndEnd());
 	}
 	bSuccess = OutKeys.Num() > 0;
+}
+
+void UShopperRewardLibrary::ParseMailAttachment(const FString& AttachmentJson, TArray<FShopReward>& OutRewards, bool& bSuccess)
+{
+	OutRewards.Empty();
+	bSuccess = true;   // 无附件也视为成功（空列表）
+
+	if (AttachmentJson.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<TSharedPtr<FJsonValue>> JsonArray;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(AttachmentJson);
+	if (!FJsonSerializer::Deserialize(Reader, JsonArray) || JsonArray.Num() == 0)
+	{
+		bSuccess = false;   // 不是合法 JSON 数组 → 解析失败
+		return;
+	}
+
+	for (const TSharedPtr<FJsonValue>& Val : JsonArray)
+	{
+		const TSharedPtr<FJsonObject>* ObjPtr = nullptr;
+		if (!Val.IsValid() || !Val->TryGetObject(ObjPtr) || !ObjPtr->IsValid())
+		{
+			continue;
+		}
+		const TSharedPtr<FJsonObject>& Obj = *ObjPtr;
+
+		FShopReward R;
+		// type 可能是字符串("1003")或数字 → 统一转 int
+		if (Obj->HasTypedField<EJson::String>(TEXT("type")))
+		{
+			R.ItemId = FCString::Atoi(*Obj->GetStringField(TEXT("type")));
+		}
+		else
+		{
+			R.ItemId = (int32)Obj->GetNumberField(TEXT("type"));
+		}
+		R.Count = (int32)Obj->GetNumberField(TEXT("value"));
+		OutRewards.Add(R);
+	}
+
+	bSuccess = OutRewards.Num() > 0;
 }

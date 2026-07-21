@@ -30,9 +30,17 @@ public:
 	static void ParseRewardListRegex(const FString& Raw, TArray<FShopReward>& OutRewards, bool& bSuccess);
 
 	// ②b 通用版：正则解析任意 "{key,value};{key,value};..." 列表
-	//       key/value 保留为字符串（不强制整数），并行输出到两个数组
-	UFUNCTION(BlueprintCallable, Category = "Shop|Reward",
+//       key/value 保留为字符串（不强制整数），并行输出到两个数组
+UFUNCTION(BlueprintCallable, Category = "Shop|Reward",
 		meta = (ExpandBoolAsExecs = "bSuccess"))
-	static void ParseBraceKeyValueList(const FString& Raw,
+static void ParseBraceKeyValueList(const FString& Raw,
 		TArray<FString>& OutKeys, TArray<FString>& OutValues, bool& bSuccess);
+
+	// ③ 解析邮件附件 JSON 数组串：[{"type":"1003","value":50}]
+//       → TArray<FShopReward>，ItemId=货币/资源码(1001/1002/1003...)，Count=数量
+//       type 兼容字符串("1003")与数字两种写法；空串视为成功（无附件）
+//       用于邮件列表行内展示「可获得：50钻石」等预览
+UFUNCTION(BlueprintCallable, Category = "Shop|Reward",
+		meta = (ExpandBoolAsExecs = "bSuccess"))
+static void ParseMailAttachment(const FString& AttachmentJson, TArray<FShopReward>& OutRewards, bool& bSuccess);
 };
