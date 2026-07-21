@@ -30,10 +30,10 @@ public:
 	FString DevBaseUrl  = TEXT("http://192.168.10.8:8081");
 
 	UPROPERTY(Config, EditAnywhere, Category = "环境")
-	FString TestBaseUrl = TEXT("https://test.example.com");
+	FString TestBaseUrl = TEXT("https://test.api.zenithgames.com");
 
 	UPROPERTY(Config, EditAnywhere, Category = "环境")
-	FString ProdBaseUrl = TEXT("https://api.example.com");
+	FString ProdBaseUrl = TEXT("https://api.zenithgames.com");
 
 	// 客户端版本号（整数）。随构建 flavor 在 DefaultGame.ini 里配，或出包时由 Build.cs 注入宏覆盖。
 	// 可填进登录协议的 ver 字段，或作为请求头随版本上报。

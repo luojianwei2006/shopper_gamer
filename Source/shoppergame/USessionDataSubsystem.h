@@ -38,6 +38,13 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Session",
               meta = (DisplayName = "读取钱包"))
     void LoadWallet(FWallet& OutWallet) const;
+	
+	// -- 新增：保存商品列表
+	UFUNCTION(BlueprintCallable, Category = "Session", meta = (DisplayName = "保存商品列表"))
+	void SaveShopList(const TArray<FShopItem>& ShopList);
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Session", meta = (DisplayName = "读取商品列表"))
+	void LoadShopList(TArray<FShopItem>& OutShopList) const;
 
     // 便捷：是否已登录（有 token 即视为已登录）
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Session")
@@ -60,4 +67,7 @@ private:
 
     UPROPERTY()
     FWallet CachedWallet;
+
+	UPROPERTY()
+	TArray<FShopItem> CachedShopList;
 };

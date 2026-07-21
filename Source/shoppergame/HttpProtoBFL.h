@@ -4,16 +4,20 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "HttpProtoStruct.h"
 #include "ShopperSettings.h"
+#include "ShopperHttpClient.h"   // 泛型 HTTP 客户端（UShopperHttpClient / EShopperHttpVerb）
 #include "HttpProtoBFL.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(
-	FOnGuestLoginDone, bool, bSuccess, FString, ResponseJson);
+	FOnGuestLoginDone, bool, bSuccess, FLoginResponse, Response);
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(
-	FOnWalletDone, bool, bSuccess, FString, ResponseJson);
+	FOnWalletDone, bool, bSuccess, FWalletResponse, Response);
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(
-	FOnLoginByTokenDone, bool, bSuccess, FString, ResponseJson);
+	FOnLoginByTokenDone, bool, bSuccess, FLoginResponse, Response);
+
+DECLARE_DYNAMIC_DELEGATE_TwoParams(
+	FOnShopListDone, bool, bSuccess, FShopListResponse, Response);
 
 UCLASS()
 class UHttpProtoBFL : public UBlueprintFunctionLibrary
@@ -23,9 +27,11 @@ class UHttpProtoBFL : public UBlueprintFunctionLibrary
 public:
 	// 发送游客登录请求（Host 由蓝图传入，支持多环境切换）
 	// 成功后内部自动调用 SaveSessionToken 持久化会话 token
+	// 内部统一走 UShopperHttpClient 泛型客户端（GET/POST 自适应、自动反序列化）
 	UFUNCTION(BlueprintCallable, Category = "Http协议",
-			  meta = (DisplayName = "发送游客登录"))
+			  meta = (DisplayName = "发送游客登录", WorldContext = "WorldContextObject"))
 	static void SendGuestLogin(
+		UObject* WorldContextObject,
 		const FString& Host,
 		const FGuestLoginProto& Proto,
 		const FOnGuestLoginDone& OnComplete);
@@ -36,8 +42,9 @@ public:
 	// Proto  : device（取 GetOrCreateDeviceId）+ token（取 LoadSessionToken）
 	// 响应结构与游客登录完全一致，蓝图可直接复用「解析游客登录响应」
 	UFUNCTION(BlueprintCallable, Category = "Http协议",
-			  meta = (DisplayName = "发送Token续期登录"))
+			  meta = (DisplayName = "发送Token续期登录", WorldContext = "WorldContextObject"))
 	static void SendLoginByToken(
+		UObject* WorldContextObject,
 		const FString& Host,
 		const FLoginByTokenProto& Proto,
 		const FOnLoginByTokenDone& OnComplete);
@@ -56,27 +63,19 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Http协议",
 			  meta = (DisplayName = "读取会话Token"))
 	static FString LoadSessionToken();
-
-	// 解析游客登录响应 JSON → 结构体（一层到位，蓝图直接拿 user / speaker / token）
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Http协议",
-			  meta = (DisplayName = "解析游客登录响应"))
-	static bool ParseGuestLoginResponse(const FString& JsonString, FLoginResponse& OutResponse);
-
-	// 发送获取钱包请求（GET，自动在 header 带上 Authorization = Token）
-	// Host   : 接口域名，如 "http://192.168.10.8:8081"
+	
+	// 发送获取钱包请求（POST /user/get_wallet，Authorization 头带 token，body 留空）
+	// Host   : 接口域名，如 "http://192.168.10.8:8081"；为空自动取项目设置基地址
 	// Token  : 登录时拿到的 token（来自登录响应的 token 字段 / 本地存档）
+	// 内部统一走 UShopperHttpClient 泛型客户端（与登录函数一致）
 	UFUNCTION(BlueprintCallable, Category = "Http协议",
-			  meta = (DisplayName = "发送获取钱包"))
+			  meta = (DisplayName = "发送获取钱包", WorldContext = "WorldContextObject"))
 	static void SendGetWallet(
+		UObject* WorldContextObject,
 		const FString& Host,
 		const FString& Token,
 		const FOnWalletDone& OnComplete);
-
-	// 解析钱包响应 JSON → 结构体（蓝图直接拿 data.balance / star / bonus / diamond）
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Http协议",
-			  meta = (DisplayName = "解析钱包响应"))
-	static bool ParseWalletResponse(const FString& JsonString, FWalletResponse& OutResponse);
-
+	
 	// 获取当前环境配置里的接口基地址（项目设置 → Shopper 环境配置）
 	// 蓝图可直接拿这个地址传给下面的发送函数；传空 Host 时发送函数也会自动用它
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Http协议",
@@ -87,4 +86,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Http协议",
 			  meta = (DisplayName = "获取客户端版本号"))
 	static int32 GetAppVersion();
+	
+	// 读取商品列表
+	UFUNCTION(BlueprintCallable, Category = "Http协议",
+			  meta = (DisplayName = "读取商品列表", WorldContext = "WorldContextObject"))
+	static void SendGetShopList(
+		UObject* WorldContextObject,
+		const FString& Host,
+		const FString& Token,
+		const FOnShopListDone& OnComplete);
 };

@@ -85,10 +85,29 @@ Source/
 └── shoppergame/             # 游戏主模块
     ├── BaseSocketSubsystem.*     # 【框架】通用 TCP 长链接基类（抽象）
     ├── ShopperSocketSubsystem.*  # 【业务】喇叭协议实现（继承基类）
-    ├── ShopperSettings.*         # 项目设置：环境地址 / Socket 配置 / 心跳间隔
-    ├── HttpProtoBFL.*            # HTTP + protobuf 蓝图函数库
+    ├── ShopperSettings.*         # 项目设置：环境地址 / Socket 配置 / 心跳间隔 / HTTP 基地址
+    ├── HttpProtoBFL.*            # 【业务】游客登录 / Token 续期 / 钱包 / 商品列表 蓝图函数库
+    ├── HttpProtoStruct.*         # 全部 HTTP 请求/响应 USTRUCT（登录/钱包/商店/通用 JSON 响应）
+    ├── ShopperHttpClient.*       # 【框架】泛型 HTTP 客户端（GameInstanceSubsystem，模板 Request<TReq,TResp>）
+    ├── ShopperApiLibrary.*       # 【示例】Login / GetPlayerProfile 接口封装样例（照抄新增接口）
+    ├── ShopperHttpTypes.*        # HTTP 动词枚举 EShopperHttpVerb 等类型
+    ├── ShopperHttpSettings.*     # HTTP 客户端配置（超时 / 日志开关，项目设置可配）
+    ├── ShopperJsonLibrary.*      # FJsonObjectWrapper 取字段工具库（GetJsonXxxField / HasJsonField）
+    ├── ShopperSaveSubsystem.*    # 【业务】玩家存档 + 音效/BGM 偏好 + 自定义 JSON 存储
+    ├── ShopperConfigSubsystem.*  # 【业务】货币类型 DataTable 查询（FindMoneyTypeByCode / GetAllMoneyTypes）
+    ├── MoneyTypeRow.h            # FMoneyTypeRow：货币配置行（MoneyCode=行名 / 名称 / 图标 / 色调）
+    ├── ShopperRewardLibrary.*    # 奖励串解析（"1002,0" / "{key,value};..." 正则拆解）
     ├── DeviceSaveGame.*          # 设备存档
     ├── USessionDataSubsystem.*   # 会话数据子系统
+    ├── HotReloadManager.*        # 热更 pak 挂载 / 卸载
+    ├── LoadingPlanAsset.*        # 加载计划数据资产
+    ├── LoadingSubsystem.*        # 启动加载闸门（Phase 聚合进度）
+    ├── WidgetManager.*           # Widget 异步预载 / 重解析
+    ├── WidgetRegistry.*          # Widget 登记表数据资产
+    ├── ShopperHotfixConfig.*     # 热更配置覆盖层数据资产
+    ├── ShopperUIFx.*             # UI 动效库（脉冲 / 回弹 / 音效，FTicker 驱动）
+    ├── WB_ButtonBase.*           # 通用按钮基类（点击脉冲 + 音效）
+    ├── WP_PanelBase.*            # 通用面板基类（弹出回弹 + 音效）
     ├── Variant_Strategy/         # 玩法变体 1：策略对战
     ├── Variant_TwinStick/        # 玩法变体 2：双摇杆射击
     └── shoppergame.Build.cs
@@ -163,6 +182,7 @@ Source/
 - **`PCHUsage = NoSharedPCHs`**：`shoppergame` 用私有 PCH。原因：该模块依赖 UMG/Slate/StateTree，UBT 新版默认选 UnrealEd 共享 PCH（内含 `ToolMenus`），会把宏 `CURRENT_FILE_ID` 残留为 ToolMenus；一旦 `ShopperSocketSubsystem.h` 嵌套包含带反射的 `BaseSocketSubsystem.h`，其 `GENERATED_BODY()` 展开成不存在的 `FID_..._ToolMenus_h_23_GENERATED_BODY` → 报 *"a type specifier is required"*。改私有 PCH 后污染源切断。**不要改回共享 PCH。**
 - **`#include "X.generated.h"` 位置**：必须放在本文件「所有其它 `#include` 之后、第一个反射声明之前」，而非文件末尾。错误位置会导致前面的反射宏拿到错误的 `CURRENT_FILE_ID`。
 - **`ShopperProto` 独立编译选项**：`bUseRTTI = true`、`bEnableExceptions = true`，独占 protobuf 类型与 libprotobuf 链接，避免污染游戏主模块。
+- **UE5.6 头文件路径变更（本工程已踩坑）**：① 正则 `FRegexPattern`/`FRegexMatcher` 在 `"Internationalization/Regex.h"`，**不是**旧版 `"HAL/Regex.h"`；② `FJsonObjectWrapper` 在 `"JsonObjectWrapper.h"`（**无** `Dom/` 前缀），`"Dom/JsonObjectWrapper.h"` 在 5.6 已移除；③ `UUserWidget::SetTickEnabled`/`IsTickEnabled` 已移除，UI 补间改用 `FTicker`；④ `UGameplayStatics::PlaySound2D` 返 `void`（旧版返 `UAudioComponent`）。遇到 `file not found` / `no member` 先核对这几条。
 
 ### 打包注意事项（上架前）/ Packaging
 
@@ -272,4 +292,85 @@ Source/
 - **UE5.6 API**：`UUserWidget::SetTickEnabled` / `IsTickEnabled` 已被移除（tick 开关改为私有 `TickFrequency`），本系统改用 `FTicker`，跨版本零依赖。
 - **委托参数顺序**：`PlayButtonPulse` / `PlayPanelBounce` 的 `OnComplete` 排在 `Target` 之后、所有带默认值参数之前（C++ 默认参数后置规则 + UHT 不支持委托构造式默认值）。
 - **`OnClicked` 签名**：UE5.6 的 `UButton::OnClicked` 为零参委托（`FOnButtonClickedEvent`），绑定回调不得带参。
+
+---
+
+## 业务逻辑层 / Business Logic Layer（HTTP · 存档 · 配置 · 奖励解析）
+
+> 这一层把「账号 / 取数 / 存档 / 配置 / 商店」等后端对接逻辑全部收口在 C++，蓝图只通过 `UFUNCTION(BlueprintCallable)` 调薄封装节点，不直接碰 JSON 字符串、正则或 protobuf。
+> This layer centralizes backend-facing logic (accounting / fetch / save / config / shop) in C++; Blueprints only call thin `BlueprintCallable` wrappers — no raw JSON strings, regex, or protobuf at the BP level.
+
+### 泛型 HTTP 客户端 / Generic HTTP Client — `UShopperHttpClient`
+
+`GameInstanceSubsystem`，**跨关卡存活、统一托管在途请求**。核心是一个模板方法，零运行时开销、类型安全：
+
+```cpp
+template <typename TRequest, typename TResponse>
+void Request(EShopperHttpVerb Verb, const FString& Endpoint, const TRequest& RequestStruct,
+    TFunction<void(bool bSuccess, const TResponse& Response, int32 HttpCode)>&& OnComplete,
+    const FString& BaseUrlOverride = FString(),
+    const TMap<FString, FString>& AdditionalHeaders = TMap<FString, FString>());
+```
+
+- **`TRequest` / `TResponse` 必须是带 `GENERATED_BODY()` 且字段标 `UPROPERTY` 的 USTRUCT**，`FJsonObjectConverter` 据此自动（反）序列化（结构即 JSON 契约）。
+- **Verb 自适应**：`Post` / `Put` → 请求结构体序列化进 JSON body；`Get` / `Delete` → 请求结构体展平为 URL query（`字段名=UrlEncode(值)`）。
+- **自定义头**：`AdditionalHeaders` 在 `Content-Type` 之后写入，用于注入 `Authorization: <token>` 等鉴权头。
+- **在途托管**：请求存入 `TArray<TSharedPtr<IHttpRequest>> ActiveRequests`，回调用 `TWeakObjectPtr<UShopperHttpClient>` 自检存活；子系统 `Deinitialize` 时统一 `Cancel`，无悬空委托。
+- **超时 / 日志**：`ShopperHttpSettings`（项目设置可配）控制 `TimeoutSec` 与 `ShouldLog`。
+
+> ⚠️ **蓝图不能直接调模板**（蓝图不支持 C++ 模板）。每个接口都在 `HttpProtoBFL` / `ShopperApiLibrary` 写一行薄封装 `UFUNCTION`，蓝图拖节点即可。
+
+### 接口封装 / Endpoint Wrappers
+
+| 封装位置 | 接口 | 说明 |
+| --- | --- | --- |
+| `HttpProtoBFL`（`DisplayName` 中文） | `SendGuestLogin` | 游客登录 `POST`，成功内部自动 `SaveSessionToken` |
+| 同上 | `SendLoginByToken` | `POST /user/login_by_token`，用本地 token 续期登录 |
+| 同上 | `SendGetWallet` | `POST /user/get_wallet`，`Authorization` 头带 token，body 留空 |
+| 同上 | `SendGetShopList` | 获取商品列表，`data` 为 `TArray<FShopItem>` |
+| 同上 | `GetOrCreateDeviceId` / `SaveSessionToken` / `LoadSessionToken` | 设备码 + 会话 token 本地持久化 |
+| 同上 | `GetApiBaseUrl` / `GetAppVersion` | 取项目设置里的基地址 / 版本号 |
+| `ShopperApiLibrary`（**示例**） | `Login` / `GetPlayerProfile` | 示范 POST/GET 两种风格，**新增接口照抄这三步**：① 定义 `FReq`/`FResp` USTRUCT → ② `DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnXxxResp, bool, bSuccess, FXxxResp, Resp)` → ③ 写 `UFUNCTION` 调 `Client->Request<FReq,FResp>(...)` |
+
+> **回调契约铁律**：动态委托第二参数一律是**类型化响应结构体**（如 `FLoginResponse` / `FWalletResponse` / `FShopListResponse`），**绝不返回 JSON 字符串**。泛型客户端已完成反序列化，蓝图直接拿 struct 字段用，无需二次解析。
+
+### 通用 JSON 响应兜底 / Fallback JSON Response — `UShopperJsonLibrary` + `FShopperJsonResponse`
+
+不想为每个接口都建强类型结构时，把 `TResponse` 直接填 **`FShopperJsonResponse`**（同构 `code/msg/token`，但 `data` 为 `FJsonObjectWrapper`，原样承载后端任意 JSON）。拿到 `data` 后用 `UShopperJsonLibrary` 按 key 取字段：
+
+- `HasJsonField` / `GetJsonStringField` / `GetJsonNumberField` / `GetJsonIntField` / `GetJsonBoolField`
+- `GetJsonObjectField`（嵌套对象）/ `GetJsonArrayField`（对象数组）/ `JsonToString`（调试）
+
+> ⚠️ **UE5.6 路径**：`FJsonObjectWrapper` 头为 `"JsonObjectWrapper.h"`（**无** `Dom/` 前缀）；取字段前若 `JsonObject` 无效而 `JsonString` 非空，库内已做兜底重新 `FJsonSerializer::Deserialize` 一次。
+
+### 玩家存档 + 音频偏好 / Save & Audio — `UShopperSaveSubsystem`
+
+`GameInstanceSubsystem`，通过 `USaveGame`（`UShopperSaveData`）持久化到本地插槽：
+
+- **自定义 JSON 存储**（三级：`分类 → key → JSON 文本`）：`SaveCustomData` / `GetCustomDataKeys` / `LoadCustomData` / `LoadCustomDataObject`(→`FJsonObjectWrapper`) / `HasCustomData` / `RemoveCustomData`，均落盘。
+- **音效偏好**：`SetSfxEnabled` / `IsSfxEnabled` / `SetSfxVolume`(Clamp 0~1) / `GetSfxVolume`；`PlaySfx(WorldContext, Sound)` 自动遵循开关与音量。
+- **背景音乐**：`SetBgmEnabled` / `IsBgmEnabled` / `SetBgmVolume`(实时生效) / `GetBgmVolume`；`PlayBackgroundMusic(Sound, bLoop=true)` 内部托管常驻 `UAudioComponent`，`StopBackgroundMusic` 停止；非循环资产播完经 `OnAudioFinished` 重播。
+
+> ⚠️ **UE5.6 音频 API**：`UGameplayStatics::PlaySound2D` 返回 `void`（旧版返 `UAudioComponent`）；BGM 循环不依赖资产 `bLooping`，由运行时 `bBgmShouldLoop` + `OnAudioFinished` 重播实现。
+
+### 货币配置 DataTable / Currency Config — `UShopperConfigSubsystem` + `FMoneyTypeRow`
+
+- **`FMoneyTypeRow : FTableRowBase`**（`MoneyTypeRow.h`）：`MoneyName`(FText) / `Icon`(TSoftObjectPtr<UTexture2D>) / `Tint`(FLinearColor)；**行名即 `MoneyCode`**（后端 `money_type` 值），不重复存字段。
+- **`UShopperConfigSubsystem`** 持有 `TSoftObjectPtr<UDataTable> MoneyTypeTable`（项目设置指到数据资产），提供：
+  - `FindMoneyTypeByCode(int32 MoneyCode, FMoneyTypeRow& OutRow)` —— 按后端 `money_type` 查配置；找不到时 `OutRow` 为默认值；
+  - `GetAllMoneyTypes()` —— 列出全部货币类型，喂给商店列表 Widget 做展示。
+
+> **蓝图用法**：建 *Miscellaneous → Data Asset* 实例 `UDataTable`（行结构选 `MoneyTypeRow`），行名填货币码（如 `1001`）；在 `ShopperConfigSubsystem` 默认值里把 `MoneyTypeTable` 指过去；商店条目 `FShopItem.money_type` 直接 `FindMoneyTypeByCode` 取图标/名称。
+
+### 奖励串解析 / Reward Parsing — `UShopperRewardLibrary`
+
+后端 `reward1` / `reward2` 形如 `"1002,0"`（itemId,count），另有 `{key,value};{key,value}` 列表：
+
+| 函数 | 输入 | 输出 |
+| --- | --- | --- |
+| `ParseReward` | `"1002,0"`（兼容 `{1002,0}` 与空格） | `FShopReward{ItemId,Count}` + `bSuccess` |
+| `ParseRewardListRegex` | `"1002,0;{1003,50}"` | `TArray<FShopReward>` + `bSuccess` |
+| `ParseBraceKeyValueList` | `"{a,b};{c,d}"` | 并行 `TArray<FString> Keys` / `Values` + `bSuccess` |
+
+> ⚠️ **UE5.6 正则头路径**：`FRegexPattern` / `FRegexMatcher` 在 `"Internationalization/Regex.h"`（**不是**旧版 `HAL/Regex.h`）。正则用 `static FRegexPattern` 只编译一次，配合 `FRegexMatcher::FindNext()` 逐段抓取。
 

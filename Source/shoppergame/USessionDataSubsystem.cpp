@@ -44,3 +44,13 @@ void UUSessionDataSubsystem::LoadWallet(FWallet& OutWallet) const
 {
     OutWallet = CachedWallet;
 }
+
+void UUSessionDataSubsystem::SaveShopList(const TArray<FShopItem>& ShopList)
+{
+    CachedShopList = ShopList;
+}
+
+void UUSessionDataSubsystem::LoadShopList(TArray<FShopItem>& OutShopList) const
+{
+    OutShopList = CachedShopList;
+}
