@@ -9,6 +9,7 @@
 // 奖励串解析工具库
 //   reward1 / reward2 后端返回形如 "1002,0"（itemId,count）
 //   另有 {key,value};{key,value};... 这类列表的通用正则解析
+//   邮件附件另有两种编码：JSON 数组 [{...}] 与裸 key,value;key,value;...
 // ───────────────────────────────────────────────────────────
 UCLASS()
 class SHOPPERGAME_API UShopperRewardLibrary : public UBlueprintFunctionLibrary
@@ -43,4 +44,13 @@ static void ParseBraceKeyValueList(const FString& Raw,
 UFUNCTION(BlueprintCallable, Category = "Shop|Reward",
 		meta = (ExpandBoolAsExecs = "bSuccess"))
 static void ParseMailAttachment(const FString& AttachmentJson, TArray<FShopReward>& OutRewards, bool& bSuccess);
+
+	// ④ 邮件附件的另一种格式：key,value;key,value;...（无花括号）
+	//       例如 "1002,0;1003,50" → 每项按 itemId,count 解析为 FShopReward
+	//       空串视为成功（无附件）；分隔容错前后空格与空段
+	//       与 ParseMailAttachment(JSON 数组) 输出同构，可直接复用同一套「展示可获得奖励」逻辑
+	//       适用场景：后端用逗号/分号平铺附件而非 JSON 时
+UFUNCTION(BlueprintCallable, Category = "Shop|Reward",
+		meta = (DisplayName = "Parse Mail Attachment (KV)", ExpandBoolAsExecs = "bSuccess"))
+static void ParseMailAttachmentKV(const FString& Raw, TArray<FShopReward>& OutRewards, bool& bSuccess);
 };

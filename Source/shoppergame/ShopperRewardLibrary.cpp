@@ -105,3 +105,31 @@ void UShopperRewardLibrary::ParseMailAttachment(const FString& AttachmentJson, T
 
 	bSuccess = OutRewards.Num() > 0;
 }
+
+void UShopperRewardLibrary::ParseMailAttachmentKV(const FString& Raw, TArray<FShopReward>& OutRewards, bool& bSuccess)
+{
+	OutRewards.Empty();
+	bSuccess = true;   // 无附件视为成功（空列表）
+
+	if (Raw.IsEmpty())
+	{
+		return;
+	}
+
+	// 先按分号拆成若干 "key,value" 段（剔除空段，容错 "a,1; ;b,2" 这类脏数据）
+	TArray<FString> Pairs;
+	Raw.ParseIntoArray(Pairs, TEXT(";"), /*bCullEmpty=*/true);
+	for (const FString& Pair : Pairs)
+	{
+		TArray<FString> Parts;
+		// 再按逗号拆成 key / value（剔除空段，容错 "1002, 0" 这种带空格写法）
+		if (Pair.ParseIntoArray(Parts, TEXT(","), /*bCullEmpty=*/true) >= 2)
+		{
+			FShopReward R;
+			R.ItemId = FCString::Atoi(*Parts[0]);
+			R.Count  = FCString::Atoi(*Parts[1]);
+			OutRewards.Add(R);
+		}
+	}
+	bSuccess = OutRewards.Num() > 0;
+}
