@@ -1,5 +1,5 @@
 #include "ShopperTextLibrary.h"
-#include "Misc/StringConv.h"   // FTCHARToUTF8
+#include "Containers/StringConv.h"   // FTCHARToUTF8 (UE5.6 路径，旧版为 Misc/StringConv.h)
 
 // 省略号 U+2026；用码点构造，避免源码编码问题
 static const TCHAR EllipsisChar = static_cast<TCHAR>(0x2026);
