@@ -309,3 +309,98 @@ struct FWabaoListResponse
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wabao") FString token;
 };
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnWabaoListDone, bool, bSuccess, FWabaoListResponse, Response);
+
+// ════════════════════════════════════════════════════════════════════════
+// 8. 任务系统 ── 任务列表（data 为对象：daily 数组 + week + week_rewards 数组）
+//    与邮件列表同样的「信封 + data 内嵌结构」范式（FJsonObjectConverter 精确
+//    匹配字段名，week_rewards 必须原样命名以对齐 JSON key）。
+// ════════════════════════════════════════════════════════════════════════
+
+// 8.1 每日任务项
+USTRUCT(BlueprintType)
+struct FTaskItem
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskId = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskIcon;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskCondition;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskCompletePara = 0;   // 需要完成次数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskProcess = 0;         // 每次进度增量
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 progress = 0;           // 当前进度
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 status = 0;             // 0进行中 1已完成 2已领奖
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // "{1002,200}" 形式
+};
+
+// 8.1 周任务里程碑奖励
+USTRUCT(BlueprintType)
+struct FWeekRewardItem
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 id = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 needPoints = 0;          // 需要的周点数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // "{1002,500},{1003,20}" 形式
+};
+
+// 8.1 data 内嵌对象
+USTRUCT(BlueprintType)
+struct FTaskListData
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") TArray<FTaskItem> daily;       // 每日任务列表
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 week = 0;                // 本周已完成任务点数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") TArray<FWeekRewardItem> week_rewards;  // 周里程碑奖励（JSON key 原样）
+};
+
+// 8.1 任务列表响应（信封 + data 内嵌）
+USTRUCT(BlueprintType)
+struct FTaskListResponse
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 code = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString msg;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FTaskListData data;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString token;
+};
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnTaskListDone, bool, bSuccess, FTaskListResponse, Response);
+
+// ════════════════════════════════════════════════════════════════════════
+// 14. 广告任务 ── 广告任务列表（data 为对象：daily 数组 + params + rewards + reward_all）
+// ════════════════════════════════════════════════════════════════════════
+
+// 14.1 广告任务项
+USTRUCT(BlueprintType)
+struct FAdsTaskItem
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 taskId = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString taskCondition;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 taskCompletePara = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString taskRoom;           // 在哪个房间完成
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 progress = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 status = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString reward;
+};
+
+// 14.1 data 内嵌对象
+USTRUCT(BlueprintType)
+struct FAdsTaskListData
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") TArray<FAdsTaskItem> daily;  // 今日广告任务
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString params;              // 广告任务参数（当前等级）"grade=2"
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString rewards;             // 全部完成后的大奖 "{1002,1000}"
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 reward_all = 0;        // 是否已领大奖 0/1
+};
+
+// 14.1 广告任务列表响应（信封 + data 内嵌）
+USTRUCT(BlueprintType)
+struct FAdsTaskListResponse
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") int32 code = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString msg;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FAdsTaskListData data;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdsTask") FString token;
+};
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnAdsTaskListDone, bool, bSuccess, FAdsTaskListResponse, Response);

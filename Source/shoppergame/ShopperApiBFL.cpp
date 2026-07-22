@@ -271,14 +271,14 @@ void UShopperApiBFL::SendMailReceive(UObject* WorldContextObject, const FString&
 
 // ═══════════════════════════════ 8. 任务 ═══════════════════════════════
 void UShopperApiBFL::SendTaskList(UObject* WorldContextObject, const FString& Host, const FString& Token,
-	const FOnShopperApiJson& OnComplete)
+	const FOnTaskListDone& OnComplete)
 {
 	FString EffectiveHost;
 	UShopperHttpClient* Client = ShopperApiBFLImpl::ResolveClient(WorldContextObject, Host, EffectiveHost);
-	if (!Client) { OnComplete.ExecuteIfBound(false, FShopperJsonResponse()); return; }
+	if (!Client) { OnComplete.ExecuteIfBound(false, FTaskListResponse()); return; }
 	FShopperEmptyReq Req;
-	Client->Request<FShopperEmptyReq, FShopperJsonResponse>(EShopperHttpVerb::Post, TEXT("task/tasks"),
-		Req, [OnComplete](bool b, const FShopperJsonResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
+	Client->Request<FShopperEmptyReq, FTaskListResponse>(EShopperHttpVerb::Post, TEXT("task/tasks"),
+		Req, [OnComplete](bool b, const FTaskListResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
 		EffectiveHost, ShopperApiBFLImpl::AuthHeaders(Token));
 }
 
@@ -536,14 +536,14 @@ void UShopperApiBFL::SendChestReward(UObject* WorldContextObject, const FString&
 
 // ═══════════════════════════════ 14. 广告任务 ═══════════════════════════════
 void UShopperApiBFL::SendAdsTaskList(UObject* WorldContextObject, const FString& Host, const FString& Token,
-	const FOnShopperApiJson& OnComplete)
+	const FOnAdsTaskListDone& OnComplete)
 {
 	FString EffectiveHost;
 	UShopperHttpClient* Client = ShopperApiBFLImpl::ResolveClient(WorldContextObject, Host, EffectiveHost);
-	if (!Client) { OnComplete.ExecuteIfBound(false, FShopperJsonResponse()); return; }
+	if (!Client) { OnComplete.ExecuteIfBound(false, FAdsTaskListResponse()); return; }
 	FShopperEmptyReq Req;
-	Client->Request<FShopperEmptyReq, FShopperJsonResponse>(EShopperHttpVerb::Post, TEXT("ads_task/tasks"),
-		Req, [OnComplete](bool b, const FShopperJsonResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
+	Client->Request<FShopperEmptyReq, FAdsTaskListResponse>(EShopperHttpVerb::Post, TEXT("ads_task/tasks"),
+		Req, [OnComplete](bool b, const FAdsTaskListResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
 		EffectiveHost, ShopperApiBFLImpl::AuthHeaders(Token));
 }
 

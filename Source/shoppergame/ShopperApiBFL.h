@@ -110,7 +110,7 @@ public:
 	// ───────────────────────── 8. 任务 Task ─────────────────────────
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|Task", meta = (DisplayName = "获取任务列表", WorldContext = "WorldContextObject"))
 	static void SendTaskList(UObject* WorldContextObject, const FString& Host, const FString& Token,
-		const FOnShopperApiJson& OnComplete);
+		const FOnTaskListDone& OnComplete);
 
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|Task", meta = (DisplayName = "更新任务进度", WorldContext = "WorldContextObject"))
 	static void SendTaskUpdateProgress(UObject* WorldContextObject, const FString& Host, const FString& Token,
@@ -192,7 +192,7 @@ public:
 	// ───────────────────────── 14. 广告任务 AdsTask ─────────────────────────
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|AdsTask", meta = (DisplayName = "广告任务列表", WorldContext = "WorldContextObject"))
 	static void SendAdsTaskList(UObject* WorldContextObject, const FString& Host, const FString& Token,
-		const FOnShopperApiJson& OnComplete);
+		const FOnAdsTaskListDone& OnComplete);
 
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|AdsTask", meta = (DisplayName = "领取广告任务奖励", WorldContext = "WorldContextObject"))
 	static void SendAdsTaskReward(UObject* WorldContextObject, const FString& Host, const FString& Token,
