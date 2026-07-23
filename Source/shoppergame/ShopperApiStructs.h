@@ -314,32 +314,44 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnWabaoListDone, bool, bSuccess, FWabaoListR
 // 8. 任务系统 ── 任务列表（data 为对象：daily 数组 + week + week_rewards 数组）
 //    与邮件列表同样的「信封 + data 内嵌结构」范式（FJsonObjectConverter 精确
 //    匹配字段名，week_rewards 必须原样命名以对齐 JSON key）。
+//    ⚠ 注意：此接口成功码为 code == 200（msg = "success"），与其它接口 code == 0 不同！
+//           蓝图判断成功必须写 code == 200，且 token 字段为 null（空字符串）。
 // ════════════════════════════════════════════════════════════════════════
 
 // 8.1 每日任务项
+//    字段名严格对齐后端 JSON key（FJsonObjectConverter 精确匹配，区分大小写/下划线）：
+//      task_id / taskIcon / taskCondition(字符串"68002") / taskCompletePara / taskProcess /
+//      progress / status / reward / type / targetType / create_time / end_time(毫秒时间戳, int64) /
+//      user_id / user_ids / id
 USTRUCT(BlueprintType)
 struct FTaskItem
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskId = 0;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskName;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskIcon;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskCondition;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskCompletePara = 0;   // 需要完成次数
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskProcess = 0;         // 每次进度增量
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 progress = 0;           // 当前进度
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 status = 0;             // 0进行中 1已完成 2已领奖
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // "{1002,200}" 形式
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 id = 0;                  // daily 项自带 id（通常为 0）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 task_id = 0;             // JSON: task_id
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskIcon;             // JSON: taskIcon（如 "task1"）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString taskCondition;        // JSON: taskCondition（字符串 "68002"，非数字）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskCompletePara = 0;   // JSON: taskCompletePara 需要完成次数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 taskProcess = 0;         // JSON: taskProcess 每次进度增量
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 progress = 0;            // JSON: progress 当前进度
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 status = 0;              // 0进行中 1已完成 2已领奖
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // JSON: reward "{1003,5}" 形式
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 type = 0;                // JSON: type
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString targetType;            // JSON: targetType "java.lang.Object"
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int64 create_time = 0;        // JSON: create_time 毫秒时间戳（超 int32，必须用 int64）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int64 end_time = 0;            // JSON: end_time 毫秒时间戳
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 user_id = 0;            // JSON: user_id
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString user_ids;              // JSON: user_ids 逗号分隔串
 };
 
 // 8.1 周任务里程碑奖励
+//    JSON: { "id": 100, "reward": "{1003,20};{1041,2}" } —— id 即解锁所需周点数，无独立 needPoints 字段
 USTRUCT(BlueprintType)
 struct FWeekRewardItem
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 id = 0;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 needPoints = 0;          // 需要的周点数
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // "{1002,500},{1003,20}" 形式
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") int32 id = 0;                  // JSON: id 解锁所需周点数（如 100/300/600/1000）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Task") FString reward;                // JSON: reward 里程碑奖励串
 };
 
 // 8.1 data 内嵌对象
