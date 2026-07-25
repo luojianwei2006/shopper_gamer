@@ -150,7 +150,13 @@ public:
 					UE_LOG(LogTemp, Warning, TEXT("[HTTP] %s 请求失败: connected=%d code=%d body=%s"),
 						*Endpoint, bConnected, Code, Resp.IsValid() ? *Resp->GetContentAsString() : TEXT(""));
 				}
-
+				
+				// 打印返回内容
+				if (Self.IsValid() && Self->ShouldLog())
+				{
+					UE_LOG(LogTemp, Log, TEXT("[HTTP] %s 响应: %s"), *Endpoint, *Resp->GetContentAsString());
+				}
+				
 				if (Self.IsValid())
 				{
 					Self->ActiveRequests.Remove(Req);

@@ -47,10 +47,6 @@
 			"MarketplaceURL": "com.epicgames.launcher://ue/Fab/product/c740c73a-736c-4fb6-9706-1e100195a180"
 		},
 		{
-			"Name": "WebBrowser",
-			"Enabled": true
-		},
-		{
 			"Name": "WebBrowserWidget",
 			"Enabled": true
 		}

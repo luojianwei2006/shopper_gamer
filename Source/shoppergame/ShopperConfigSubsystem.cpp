@@ -2,9 +2,9 @@
 #include "UObject/UObjectGlobals.h"
 
 // 约定路径：若 MoneyTypeTable 软引用未配置，则回退到此路径的 DataTable 资产
-// 在编辑器中把货币类型表建到 /Game/Data/DT_MoneyType 即可，无需改 C++
+// 在编辑器中把货币类型表建到 /Game/Logic/MoneyTypeDataTable 即可，无需改 C++
 static constexpr const TCHAR* DefaultMoneyTablePath =
-    TEXT("/Game/Data/DT_MoneyType.DT_MoneyType");
+    TEXT("/Game/Logic/MoneyTypeDataTable.MoneyTypeDataTable");
 
 void UShopperConfigSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

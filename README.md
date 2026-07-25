@@ -370,14 +370,14 @@ void Request(EShopperHttpVerb Verb, const FString& Endpoint, const TRequest& Req
 >
 > **未覆盖 / 说明**：① `user/send_authcode`、`user/check_authcode` 文档标注 `application/x-www-form-urlencoded`，本项目客户端统一以 **JSON body** 发送（与 `SendGetWallet` 一致）；若后端 `Strict` 要求 form，需在 `ShopperHttpClient` 增加 form 编码分支。② 第 16 节 Refer、第 17 节 Web（客户端仅打开 URL，非 HTTP 调用）、第 18 节 Payment Callbacks（服务端接收的 Webhook，非客户端调用）未实现。
 
-### 应用内支付 WebView / In-App Payment WebView
+### 通用 WebView / Generic WebView
 
-`shop/buy` 返回的 `data.param.jumpUrl` 是支付平台跳转地址，**应用内**用 UMG `WebBrowser` 控件（CEF 内核）打开，而不是 `Open URL`（那会跳出 App 开系统浏览器，支付完回不来 UI 流）。
+用 UMG `WebBrowser` 控件（CEF 内核）**应用内**打开任意网页 URL（活动页、公告、支付跳转等），而不是 `Open URL`（那会跳出 App 开系统浏览器，回不来 UI 流）。
 
 - **模块依赖**：`shoppergame.Build.cs` 已加 `WebBrowser` + `WebBrowserWidget`（改后需重跑 `GenerateProjectFiles`）；`.uproject` 需启用 `WebBrowser` / `WebBrowserWidget` 插件。
-- **`UShopperPaymentWebView`**（`ShopperPaymentWebView.h/.cpp`，`UUserWidget` 基类）：C++ 运行时创建 `UWebBrowser`、绑定 `OnUrlChanged` 检测**回跳地址特征串**（`ReturnUrlMarker`，如 `web/pay/return` / `status=success`），命中广播 `OnPaymentReturn` 并自动 `ClosePayment`。蓝图子类 `WBP_PaymentWebView` 只需放一个命名为 **`WebBrowserSlot`** 的 `Overlay` 作容器 + 背景遮罩 + 关闭按钮。
-- **`UShopperPaymentSubsystem`**（`ShopperPaymentSubsystem.h/.cpp`，`UGameInstanceSubsystem`）：`ShowPayment(JumpUrl, ReturnUrlMarker?)` 创建并加载支付页，`OnPaymentCompleted` 广播最终回跳 URL；`PaymentWidgetClass` / `DefaultReturnUrlMarker` 在 CDO 配一次（指到 `WBP_PaymentWebView`）。游戏逻辑绑 `OnPaymentCompleted` → 调 `SendGetWallet` 刷新余额即可。
-- ⚠️ Mac 编辑器里 CEF 偶尔拉不起 WebView（已知怪癖），**Win / Android / iOS 真机正常**；回跳特征串需和支付平台后台配置的 return URL 对齐。
+- **`UShopperWebView`**（`ShopperWebView.h/.cpp`，`UUserWidget` 基类）：C++ 运行时创建 `UWebBrowser`、绑定 `OnUrlChanged` 检测**回调地址特征串**（`ReturnUrlMarker`，可选）。命中广播 `OnWebViewReturn` 并自动 `CloseWebView`。蓝图子类 `WBP_WebView` 只需放一个命名为 **`WebBrowserSlot`** 的 `Overlay` 作容器 + 背景遮罩 + 关闭按钮；不传特征串时纯展示、不自动回调。
+- **`UShopperWebSubsystem`**（`ShopperWebSubsystem.h/.cpp`，`UGameInstanceSubsystem`）：`ShowWebView(Url, ReturnUrlMarker?)` 创建并加载网页，`OnWebViewCompleted` 广播最终回调 URL；`WebViewWidgetClass` / `DefaultReturnUrlMarker` 在 CDO 配一次（指到 `WBP_WebView`）。游戏逻辑绑 `OnWebViewCompleted` 做后续处理（如支付回跳后调 `SendGetWallet` 刷新余额）。未实现订单查询——按需自行扩展。
+- ⚠️ Mac 编辑器里 CEF 偶尔拉不起 WebView（已知怪癖），**Win / Android / iOS 真机正常**；回调特征串需和对应平台后台配置的 return URL 对齐。
 
 ### 通用 JSON 响应兜底 / Fallback JSON Response — `UShopperJsonLibrary` + `FShopperJsonResponse`
 
