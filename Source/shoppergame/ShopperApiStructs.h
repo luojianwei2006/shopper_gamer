@@ -311,6 +311,46 @@ struct FWabaoListResponse
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnWabaoListDone, bool, bSuccess, FWabaoListResponse, Response);
 
 // ════════════════════════════════════════════════════════════════════════
+// 4. 商城 ── 购买商品（data 为对象：shop_id / method / param / price / money_type）
+//    字段名严格对齐后端 JSON key（FJsonObjectConverter 精确匹配）：
+//      shop_id / method / param{orderNo, jumpUrl} / price / money_type
+//    ⚠ 成功码为 code == 200（msg = "success"），token 为 null，与任务列表一致。
+// ════════════════════════════════════════════════════════════════════════
+
+// 4. 支付参数（param 内嵌对象）
+USTRUCT(BlueprintType)
+struct FShopBuyParam
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FString orderNo;   // JSON: orderNo 订单号（如 UUID）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FString jumpUrl;    // JSON: jumpUrl 跳转支付页 URL
+};
+
+// 4. data 内嵌对象
+USTRUCT(BlueprintType)
+struct FShopBuyData
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") int32 shop_id = 0;       // JSON: shop_id
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FString method;           // JSON: method 支付方式（如 "paypal"）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FShopBuyParam param;     // JSON: param 支付参数
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") int32 price = 0;          // JSON: price 价格
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") int32 money_type = 0;     // JSON: money_type 货币类型
+};
+
+// 4. 购买商品响应（信封 + data 内嵌）
+USTRUCT(BlueprintType)
+struct FShopBuyResponse
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") int32 code = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FString msg;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FShopBuyData data;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Buy") FString token;
+};
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnShopBuyDone, bool, bSuccess, FShopBuyResponse, Response);
+
+// ════════════════════════════════════════════════════════════════════════
 // 8. 任务系统 ── 任务列表（data 为对象：daily 数组 + week + week_rewards 数组）
 //    与邮件列表同样的「信封 + data 内嵌结构」范式（FJsonObjectConverter 精确
 //    匹配字段名，week_rewards 必须原样命名以对齐 JSON key）。

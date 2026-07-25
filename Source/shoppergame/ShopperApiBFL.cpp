@@ -129,17 +129,17 @@ void UShopperApiBFL::SendUserNewestRecord(UObject* WorldContextObject, const FSt
 
 // ═══════════════════════════════ 4. 商城 ═══════════════════════════════
 void UShopperApiBFL::SendShopBuy(UObject* WorldContextObject, const FString& Host, const FString& Token,
-	int32 ShopId, const FString& Method, const FOnShopperApiJson& OnComplete)
+	int32 ShopId, const FString& Method, const FOnShopBuyDone& OnComplete)
 {
 	FString EffectiveHost;
 	UShopperHttpClient* Client = ShopperApiBFLImpl::ResolveClient(WorldContextObject, Host, EffectiveHost);
-	if (!Client) { OnComplete.ExecuteIfBound(false, FShopperJsonResponse()); return; }
+	if (!Client) { OnComplete.ExecuteIfBound(false, FShopBuyResponse()); return; }
 	TMap<FString, FString> Query;
 	Query.Add(TEXT("shopId"), FString::FromInt(ShopId));
 	Query.Add(TEXT("method"), Method);
 	FShopperEmptyReq Req;
-	Client->Request<FShopperEmptyReq, FShopperJsonResponse>(EShopperHttpVerb::Post, TEXT("shop/buy"),
-		Req, [OnComplete](bool b, const FShopperJsonResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
+	Client->Request<FShopperEmptyReq, FShopBuyResponse>(EShopperHttpVerb::Post, TEXT("shop/buy"),
+		Req, [OnComplete](bool b, const FShopBuyResponse& R, int32) { OnComplete.ExecuteIfBound(b, R); },
 		EffectiveHost, ShopperApiBFLImpl::AuthHeaders(Token), Query);
 }
 

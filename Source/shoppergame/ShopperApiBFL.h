@@ -66,7 +66,7 @@ public:
 	// ───────────────────────── 4. 商城 Shop ─────────────────────────
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|Shop", meta = (DisplayName = "购买商品", WorldContext = "WorldContextObject"))
 	static void SendShopBuy(UObject* WorldContextObject, const FString& Host, const FString& Token,
-		int32 ShopId, const FString& Method, const FOnShopperApiJson& OnComplete);
+		int32 ShopId, const FString& Method, const FOnShopBuyDone& OnComplete);
 
 	// ───────────────────────── 5. 签到 Sign ─────────────────────────
 	UFUNCTION(BlueprintCallable, Category = "ShopperAPI|Sign", meta = (DisplayName = "每日签到", WorldContext = "WorldContextObject"))
