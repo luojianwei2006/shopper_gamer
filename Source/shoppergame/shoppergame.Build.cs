@@ -38,7 +38,9 @@ public class shoppergame : ModuleRules
 			"Sockets",       // 持久化 TCP 长链接
 			"Networking",    // FIPv4Endpoint / FInternetAddr
 			"PakFile",       // FPakPlatformFile::Mount/Unmount —— 运行时热更 pak 挂载（链接期需要此模块）
-			"ShopperProto"   // protobuf 运行时：消息 <-> 字节互转（依赖该模块才能 #include 其头与链接 libprotobuf）
+			"ShopperProto",  // protobuf 运行时：消息 <-> 字节互转（依赖该模块才能 #include 其头与链接 libprotobuf）
+			"WebBrowser",       // CEF 浏览器核心（应用内 WebView）
+			"WebBrowserWidget"  // UMG WebBrowser 控件（UWebBrowser）
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
